@@ -323,7 +323,7 @@ export const getWidgetStyles = (): string => `
   .feedback-submit-button {
     width: 100%;
     padding: 12px 16px;
-    background-color: ${colors.charcoal};
+    background-color: ${colors.blue};
     color: ${colors.text};
     border: none;
     border-radius: 8px;
@@ -336,12 +336,12 @@ export const getWidgetStyles = (): string => `
   }
 
   .feedback-submit-button:hover {
-    background-color: ${colors.gray800};
+    background-color: ${colors.blueHover};
   }
 
   .feedback-submit-button:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(51, 63, 72, 0.3);
+    box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.3);
   }
 
   .feedback-submit-button:active {
@@ -381,7 +381,7 @@ export const getWidgetStyles = (): string => `
   }
 
   .feedback-submit-button:disabled:hover {
-    background-color: ${colors.charcoal};
+    background-color: ${colors.blue};
     transform: none;
   }
 

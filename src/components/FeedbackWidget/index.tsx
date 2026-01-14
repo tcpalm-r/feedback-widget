@@ -259,6 +259,7 @@ export function FeedbackWidget({
   }, [isSelectionMode]);
 
   // Helper to create a numbered badge for a selected element
+  // Uses Sonance brand colors and Montserrat font
   const createSelectionBadge = useCallback((element: HTMLElement, number: number): HTMLDivElement => {
     const badge = document.createElement('div');
     badge.className = 'feedback-selection-badge';
@@ -279,7 +280,7 @@ export function FeedbackWidget({
       justify-content: center;
       pointer-events: none;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     `;
     const rect = element.getBoundingClientRect();
     badge.style.left = `${rect.left - 8}px`;
@@ -325,6 +326,7 @@ export function FeedbackWidget({
     }
 
     // Create highlight overlay element if it doesn't exist
+    // Uses Sonance "The Beam" blue (#00A3E1) for consistent branding
     if (!highlightOverlayRef.current) {
       const overlay = document.createElement('div');
       overlay.id = 'feedback-highlight-overlay';

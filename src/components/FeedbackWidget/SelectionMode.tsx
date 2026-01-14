@@ -76,8 +76,23 @@ export function getSelectionModeOverlayHTML(selectedCount: number = 0, warning: 
 
 /**
  * Get selection mode styles
+ * Using Sonance brand colors and typography
  */
 export function getSelectionModeStyles(): string {
+  // Sonance brand colors
+  const colors = {
+    blue: '#00A3E1', // The Beam
+    blueHover: '#0090c7',
+    blueLight: '#4dc3eb',
+    charcoal: '#333F48',
+    lightGray: '#D9D9D6',
+    gray50: '#f8f9fa',
+    gray100: '#f0f2f3',
+    gray400: '#8f999f',
+    gray500: '#6b7780',
+    gray800: '#3a444c',
+  };
+
   return `
     /* Select on Screen button in form */
     .feedback-select-button {
@@ -87,26 +102,28 @@ export function getSelectionModeStyles(): string {
       gap: 8px;
       width: 100%;
       padding: 10px 16px;
-      background-color: #f3f4f6;
-      color: #374151;
-      border: 1px dashed #9ca3af;
+      background-color: ${colors.gray50};
+      color: ${colors.charcoal};
+      border: 1px dashed ${colors.lightGray};
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
       cursor: pointer;
       transition: all 0.15s ease;
     }
 
     .feedback-select-button:hover {
-      background-color: #e5e7eb;
-      border-color: #6b7280;
-      color: #1f2937;
+      background-color: ${colors.gray100};
+      border-color: ${colors.gray400};
+      color: ${colors.charcoal};
     }
 
     .feedback-select-button:focus {
       outline: none;
       box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.2);
-      border-color: #00A3E1;
+      border-color: ${colors.blue};
     }
 
     .feedback-select-button:disabled {
@@ -115,9 +132,9 @@ export function getSelectionModeStyles(): string {
     }
 
     .feedback-select-button:disabled:hover {
-      background-color: #f3f4f6;
-      border-color: #9ca3af;
-      color: #374151;
+      background-color: ${colors.gray50};
+      border-color: ${colors.lightGray};
+      color: ${colors.charcoal};
     }
 
     .feedback-select-button svg {
@@ -134,7 +151,7 @@ export function getSelectionModeStyles(): string {
     .selection-mode-overlay {
       position: fixed;
       inset: 0;
-      background-color: rgba(0, 0, 0, 0.3);
+      background-color: rgba(51, 63, 72, 0.3);
       z-index: 999998;
       cursor: crosshair;
       display: flex;
@@ -151,7 +168,7 @@ export function getSelectionModeStyles(): string {
       align-items: center;
       justify-content: space-between;
       gap: 24px;
-      background-color: #1f2937;
+      background-color: ${colors.charcoal};
       color: #ffffff;
       padding: 12px 20px;
       border-radius: 12px;
@@ -188,7 +205,7 @@ export function getSelectionModeStyles(): string {
       width: 20px;
       height: 20px;
       fill: none;
-      stroke: #4dc3eb;
+      stroke: ${colors.blue};
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
@@ -201,7 +218,7 @@ export function getSelectionModeStyles(): string {
 
     .selection-mode-counter {
       font-size: 13px;
-      color: #9ca3af;
+      color: ${colors.lightGray};
       padding: 4px 10px;
       background-color: rgba(255, 255, 255, 0.1);
       border-radius: 20px;
@@ -218,18 +235,20 @@ export function getSelectionModeStyles(): string {
       align-items: center;
       gap: 6px;
       padding: 8px 16px;
-      background-color: #00A3E1;
+      background-color: ${colors.blue};
       color: #ffffff;
       border: none;
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
       cursor: pointer;
       transition: all 0.15s ease;
     }
 
     .selection-mode-done-button:hover {
-      background-color: #0090c7;
+      background-color: ${colors.blueHover};
     }
 
     .selection-mode-done-button:focus {
@@ -253,7 +272,7 @@ export function getSelectionModeStyles(): string {
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background-color: rgba(0, 0, 0, 0.8);
+      background-color: ${colors.charcoal};
       color: #ffffff;
       padding: 8px 16px;
       border-radius: 8px;
@@ -276,7 +295,7 @@ export function getSelectionModeStyles(): string {
       padding: 2px 6px;
       background-color: rgba(255, 255, 255, 0.2);
       border-radius: 4px;
-      font-family: monospace;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 12px;
       margin: 0 2px;
     }

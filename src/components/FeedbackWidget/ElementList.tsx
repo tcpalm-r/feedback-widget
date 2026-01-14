@@ -113,8 +113,22 @@ function getElementListExpandedHTML(elements: SelectedElementData[]): string {
 
 /**
  * Get styles for the element list component
+ * Using Sonance brand colors and typography
  */
 export function getElementListStyles(): string {
+  // Sonance brand colors
+  const colors = {
+    blue: '#00A3E1', // The Beam
+    blueHover: '#0090c7',
+    blueLight: '#4dc3eb',
+    charcoal: '#333F48',
+    lightGray: '#D9D9D6',
+    gray50: '#f8f9fa',
+    gray100: '#f0f2f3',
+    gray400: '#8f999f',
+    gray500: '#6b7780',
+  };
+
   return `
     /* Element List Container */
     .element-list-container {
@@ -128,9 +142,9 @@ export function getElementListStyles(): string {
       justify-content: space-between;
       width: 100%;
       padding: 10px 12px;
-      background-color: #e6f6fc;
-      color: #0090c7;
-      border: 1px solid #80d1f0;
+      background-color: rgba(0, 163, 225, 0.08);
+      color: ${colors.blueHover};
+      border: 1px solid rgba(0, 163, 225, 0.3);
       border-radius: 8px;
       font-size: 13px;
       font-weight: 500;
@@ -139,8 +153,8 @@ export function getElementListStyles(): string {
     }
 
     .element-list-badge:hover {
-      background-color: #ccedfa;
-      border-color: #4dc3eb;
+      background-color: rgba(0, 163, 225, 0.12);
+      border-color: ${colors.blueLight};
     }
 
     .element-list-badge:focus {
@@ -176,8 +190,8 @@ export function getElementListStyles(): string {
 
     /* Expanded List */
     .element-list-expanded {
-      background-color: #f8fafc;
-      border: 1px solid #80d1f0;
+      background-color: ${colors.gray50};
+      border: 1px solid rgba(0, 163, 225, 0.3);
       border-top: none;
       border-radius: 0 0 8px 8px;
       overflow: hidden;
@@ -194,7 +208,7 @@ export function getElementListStyles(): string {
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid ${colors.lightGray};
       transition: background-color 0.15s ease;
     }
 
@@ -203,7 +217,7 @@ export function getElementListStyles(): string {
     }
 
     .element-list-item:hover {
-      background-color: #f1f5f9;
+      background-color: ${colors.gray100};
     }
 
     .element-item-number {
@@ -211,7 +225,7 @@ export function getElementListStyles(): string {
       width: 20px;
       height: 20px;
       border-radius: 50%;
-      background-color: #00A3E1;
+      background-color: ${colors.blue};
       color: white;
       font-size: 11px;
       font-weight: 600;
@@ -224,7 +238,7 @@ export function getElementListStyles(): string {
       flex: 1;
       min-width: 0;
       font-size: 12px;
-      color: #374151;
+      color: ${colors.charcoal};
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -232,15 +246,15 @@ export function getElementListStyles(): string {
 
     .element-tag {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      background-color: #e0e7ff;
-      color: #4338ca;
+      background-color: rgba(0, 163, 225, 0.1);
+      color: ${colors.blueHover};
       padding: 2px 4px;
       border-radius: 3px;
       font-size: 11px;
     }
 
     .element-text {
-      color: #6b7280;
+      color: ${colors.gray500};
       margin-left: 6px;
       font-style: italic;
     }
@@ -251,7 +265,7 @@ export function getElementListStyles(): string {
       height: 24px;
       border: none;
       background: transparent;
-      color: #9ca3af;
+      color: ${colors.gray400};
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -291,9 +305,11 @@ export function getElementListStyles(): string {
       background-color: transparent;
       color: #dc2626;
       border: none;
-      border-top: 1px solid #e2e8f0;
+      border-top: 1px solid ${colors.lightGray};
       font-size: 12px;
       font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
       cursor: pointer;
       transition: background-color 0.15s ease;
     }

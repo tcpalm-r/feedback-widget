@@ -1,26 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
+  /* Sonance Core Colors */
+  --sonance-charcoal: #333F48;
+  --sonance-blue: #00A3E1;
+  --sonance-light-gray: #D9D9D6;
+  --sonance-white: #FFFFFF;
+  --sonance-black: #000000;
+
+  /* Sonance Gray Scale */
+  --sonance-gray-50: #f8f9fa;
+  --sonance-gray-100: #f0f2f3;
+  --sonance-gray-200: #D9D9D6;
+  --sonance-gray-300: #b8bfc4;
+  --sonance-gray-400: #8f999f;
+  --sonance-gray-500: #6b7780;
+  --sonance-gray-600: #515c64;
+  --sonance-gray-700: #424c54;
+  --sonance-gray-800: #3a444c;
+  --sonance-gray-900: #333F48;
+
+  /* Semantic Variables */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #333F48;
+  --foreground-secondary: #515c64;
+  --foreground-muted: #6b7780;
+  --primary: #333F48;
+  --primary-foreground: #ffffff;
+  --border: #D9D9D6;
+
+  /* Typography */
+  --font-primary: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-primary);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #1a1f24;
+    --foreground: #ffffff;
+    --foreground-secondary: #D9D9D6;
+    --foreground-muted: #8f999f;
+    --primary: #ffffff;
+    --primary-foreground: #333F48;
+    --border: #3a444c;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-primary);
+  line-height: 1.6;
 }
