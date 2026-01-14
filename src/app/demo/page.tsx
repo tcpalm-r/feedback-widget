@@ -1,7 +1,27 @@
+"use client";
+
 import Link from "next/link";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
+import { useSyncExternalStore } from "react";
+
+// Initialize the feedback widget configuration
+FeedbackWidget.init({
+  appId: 'demo-app',
+  position: 'bottom-right',
+});
+
+// Hook to detect client-side mount (avoids ESLint set-state-in-effect rule)
+function useIsClient() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+}
 
 export default function DemoPage() {
+  // Track client-side mount to only render widget on client
+  const isMounted = useIsClient();
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
       {/* Navigation */}
@@ -363,8 +383,8 @@ export default function DemoPage() {
         </div>
       </footer>
 
-      {/* Feedback Widget */}
-      <FeedbackWidget appId="demo-app" />
+      {/* Feedback Widget - uses config from FeedbackWidget.init() */}
+      {isMounted && <FeedbackWidget />}
     </div>
   );
 }

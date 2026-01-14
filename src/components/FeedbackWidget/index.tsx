@@ -18,6 +18,12 @@ import {
 } from './utils/positionStore';
 import { submitFeedback, FeedbackMetadata } from '../../lib/supabase';
 import { detectUserId, JwtConfig } from './utils/jwt';
+import {
+  initConfig,
+  getConfig,
+  FeedbackWidgetConfig,
+  WidgetPosition,
+} from './utils/config';
 
 // MessageSquare icon SVG path (from Lucide)
 const MessageSquareIcon = `
@@ -27,7 +33,7 @@ const MessageSquareIcon = `
 `;
 
 export interface FeedbackWidgetProps {
-  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  position?: WidgetPosition;
   appId?: string;
   jwtConfig?: JwtConfig;
 }
@@ -41,11 +47,49 @@ function useIsClient() {
   );
 }
 
+/**
+ * Initialize the FeedbackWidget with configuration.
+ * Must be called before rendering the widget.
+ *
+ * @param config - Configuration object
+ * @param config.appId - Required. Unique identifier for your application
+ * @param config.position - Optional. Initial position: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+ * @param config.jwtConfig - Optional. JWT detection configuration
+ *
+ * @throws Error if appId is missing or invalid
+ *
+ * @example
+ * ```tsx
+ * // In your app initialization
+ * FeedbackWidget.init({
+ *   appId: 'my-app',
+ *   position: 'bottom-left',
+ *   jwtConfig: {
+ *     cookieKeys: ['auth_token'],
+ *     userIdClaim: 'user_id'
+ *   }
+ * });
+ *
+ * // Then render the widget
+ * <FeedbackWidget />
+ * ```
+ */
+FeedbackWidget.init = function init(config: FeedbackWidgetConfig): void {
+  initConfig(config);
+};
+
 export function FeedbackWidget({
-  position = 'bottom-right',
-  appId = 'default',
+  position,
+  appId,
   jwtConfig,
-}: FeedbackWidgetProps) {
+}: FeedbackWidgetProps = {}) {
+  // Get config from init() if available, with props as overrides
+  const globalConfig = getConfig();
+
+  // Resolve effective values: props override init() config
+  const effectiveAppId = appId ?? globalConfig?.appId ?? 'default';
+  const effectivePosition = position ?? globalConfig?.position ?? 'bottom-right';
+  const effectiveJwtConfig = jwtConfig ?? globalConfig?.jwtConfig;
   const hostRef = useRef<HTMLDivElement>(null);
   const shadowRootRef = useRef<ShadowRoot | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -76,8 +120,8 @@ export function FeedbackWidget({
 
   // Initialize position on mount
   useEffect(() => {
-    initializePosition(position);
-  }, [position]);
+    initializePosition(effectivePosition);
+  }, [effectivePosition]);
 
   // Handle window resize to keep widget within bounds
   useEffect(() => {
@@ -439,14 +483,14 @@ export function FeedbackWidget({
 
   // Collect metadata
   const collectMetadata = useCallback((): FeedbackMetadata => {
-    const userId = detectUserId(jwtConfig);
+    const userId = detectUserId(effectiveJwtConfig);
     return {
       url: typeof window !== 'undefined' ? window.location.href : '',
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
       timestamp: new Date().toISOString(),
       ...(userId && { userId }),
     };
-  }, [jwtConfig]);
+  }, [effectiveJwtConfig]);
 
   // Form submit handler
   const handleSubmit = useCallback(async (e: Event) => {
@@ -464,7 +508,7 @@ export function FeedbackWidget({
 
     const metadata = collectMetadata();
     const result = await submitFeedback({
-      app_id: appId,
+      app_id: effectiveAppId,
       type: feedbackType,
       message: feedbackMessage.trim(),
       elements: selectedElements.length > 0 ? selectedElements : undefined,
@@ -487,7 +531,7 @@ export function FeedbackWidget({
       setSubmissionState('error');
       setErrorMessage(result.error || 'Failed to submit feedback');
     }
-  }, [feedbackType, feedbackMessage, appId, collectMetadata, selectedElements]);
+  }, [feedbackType, feedbackMessage, effectiveAppId, collectMetadata, selectedElements]);
 
   // Retry handler for error state
   const handleRetry = useCallback(() => {
@@ -688,7 +732,7 @@ export function FeedbackWidget({
       }
     };
   }, [
-    position,
+    effectivePosition,
     isExpanded,
     widgetPosition,
     isDragging,
@@ -714,5 +758,9 @@ export function FeedbackWidget({
 
   return <div ref={hostRef} data-feedback-widget />;
 }
+
+// Re-export types for convenience
+export type { FeedbackWidgetConfig, WidgetPosition } from './utils/config';
+export type { JwtConfig } from './utils/jwt';
 
 export default FeedbackWidget;
