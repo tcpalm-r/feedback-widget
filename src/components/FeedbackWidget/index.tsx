@@ -2,19 +2,20 @@
 
 import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
 import { getWidgetStyles } from './styles';
-import { constrainToViewport } from './utils/storage';
 import { getFeedbackFormHTML, FeedbackType, SubmissionState } from './FeedbackForm';
 import { getSelectionModeOverlayHTML } from './SelectionMode';
 import { isInteractiveElement, findInteractiveParent, createSelectedElementData, SelectedElementData } from './utils/elements';
 import {
   initializePosition,
-  setPosition,
-  updateAndSavePosition,
-  constrainPositionToViewport,
+  startDrag,
+  updateDragPosition,
+  endDrag,
   subscribe,
   getSnapshot,
   getServerSnapshot,
+  getExpandedPositionForCorner,
   WIDGET_SIZE,
+  PADDING,
 } from './utils/positionStore';
 import { submitFeedback, FeedbackMetadata, SubmitFeedbackResult } from '../../lib/supabase';
 import { detectUserId, JwtConfig } from './utils/jwt';
@@ -92,14 +93,24 @@ export function FeedbackWidget({
   const effectiveJwtConfig = jwtConfig ?? globalConfig?.jwtConfig;
   const hostRef = useRef<HTMLDivElement>(null);
   const shadowRootRef = useRef<ShadowRoot | null>(null);
+  const morphContainerRef = useRef<HTMLDivElement | null>(null);
+  const containerListenersAddedRef = useRef(false);
+  // Refs to track current state for event handlers (so they don't capture stale values)
+  const isExpandedRef = useRef(false);
+  const isSelectionModeRef = useRef(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('general');
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  // Update refs for event handlers to read current state
+  isExpandedRef.current = isExpanded;
+  isSelectionModeRef.current = isSelectionMode;
+  // Ref to hold current handleMouseDown (so container listener doesn't capture stale version)
+  const handleMouseDownRef = useRef<(e: MouseEvent) => void>(() => {});
   const [selectedElements, setSelectedElements] = useState<SelectedElementData[]>([]);
   const [selectionWarning, setSelectionWarning] = useState<string | null>(null);
   const [isElementListExpanded, setIsElementListExpanded] = useState(false);
@@ -117,43 +128,39 @@ export function FeedbackWidget({
   const isClient = useIsClient();
 
   // Use external store for position
-  const widgetPosition = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const widgetState = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const { position: widgetPosition, isDragging } = widgetState;
 
   // Initialize position on mount
   useEffect(() => {
     initializePosition(effectivePosition);
   }, [effectivePosition]);
 
-  // Handle window resize to keep widget within bounds
-  useEffect(() => {
-    const handleResize = () => {
-      constrainPositionToViewport();
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // Track if drag has been started (to avoid re-calling startDrag)
+  const dragStartedRef = useRef(false);
 
   // Drag handlers
   const handleMouseDown = useCallback(
     (e: MouseEvent) => {
-      // Only start drag on left click
-      if (e.button !== 0) return;
+      // Only start drag on left click, and only when collapsed
+      if (e.button !== 0 || isExpanded) return;
 
-      setIsDragging(true);
+      isDraggingRef.current = true;
       hasDraggedRef.current = false;
+      dragStartedRef.current = false;
       dragStartRef.current = { x: e.clientX, y: e.clientY };
       dragStartPositionRef.current = { ...widgetPosition };
-
-      e.preventDefault();
+      // Don't call startDrag() here - wait until user actually moves
     },
-    [widgetPosition]
+    [widgetPosition, isExpanded]
   );
+  // Update ref so container listener always uses latest version
+  handleMouseDownRef.current = handleMouseDown;
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       if (
-        !isDragging ||
+        !isDraggingRef.current ||
         !dragStartRef.current ||
         !dragStartPositionRef.current
       ) {
@@ -166,45 +173,56 @@ export function FeedbackWidget({
       // Mark as dragged if moved more than 5 pixels
       if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
         hasDraggedRef.current = true;
+
+        // Start drag mode only when user actually moves (not on mousedown)
+        if (!dragStartedRef.current) {
+          dragStartedRef.current = true;
+          startDrag();
+        }
       }
 
-      const newPosition = constrainToViewport(
-        {
-          x: dragStartPositionRef.current.x + deltaX,
-          y: dragStartPositionRef.current.y + deltaY,
-        },
-        WIDGET_SIZE,
-        WIDGET_SIZE
-      );
+      // Only update position if we've actually started dragging
+      if (!dragStartedRef.current) return;
 
-      setPosition(newPosition);
+      // Constrain to viewport
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const newX = Math.max(PADDING, Math.min(
+        dragStartPositionRef.current.x + deltaX,
+        viewportWidth - WIDGET_SIZE - PADDING
+      ));
+      const newY = Math.max(PADDING, Math.min(
+        dragStartPositionRef.current.y + deltaY,
+        viewportHeight - WIDGET_SIZE - PADDING
+      ));
+
+      updateDragPosition(newX, newY);
     },
-    [isDragging]
+    []
   );
 
   const handleMouseUp = useCallback(() => {
-    if (isDragging) {
-      // Save position to localStorage
-      updateAndSavePosition(widgetPosition);
+    if (isDraggingRef.current && dragStartedRef.current) {
+      // Snap to nearest corner (only if drag actually started)
+      endDrag();
     }
 
-    setIsDragging(false);
+    isDraggingRef.current = false;
+    dragStartedRef.current = false;
     dragStartRef.current = null;
     dragStartPositionRef.current = null;
-  }, [isDragging, widgetPosition]);
+  }, []);
 
-  // Global mouse event listeners for drag
+  // Global mouse event listeners for drag - always listen, check ref inside handlers
   useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
 
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
 
   // Clear auto-close timer, warning timeout, highlight overlay, and selection badges on unmount
   useEffect(() => {
@@ -252,7 +270,7 @@ export function FeedbackWidget({
       width: 24px;
       height: 24px;
       border-radius: 50%;
-      background-color: #6366f1;
+      background-color: #00A3E1;
       color: white;
       font-size: 12px;
       font-weight: 600;
@@ -314,8 +332,8 @@ export function FeedbackWidget({
         position: fixed;
         pointer-events: none;
         z-index: 999997;
-        border: 2px solid #6366f1;
-        background-color: rgba(99, 102, 241, 0.1);
+        border: 2px solid #00A3E1;
+        background-color: rgba(0, 163, 225, 0.1);
         border-radius: 4px;
         transition: all 0.1s ease-out;
         display: none;
@@ -593,63 +611,110 @@ export function FeedbackWidget({
 
     const shadowRoot = shadowRootRef.current;
 
-    // Use absolute positioning with draggable state
-    const draggingClass = isDragging ? 'dragging' : '';
+    // Build CSS classes for the morph container
     const expandedClass = isExpanded ? 'expanded' : '';
-    const selectionModeClass = isSelectionMode ? 'selection-mode' : '';
+    const draggingClass = isDragging ? 'dragging' : '';
 
-    const formHTML = isExpanded ? `
-      <div class="feedback-form-panel">
-        ${getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, selectedElements, isElementListExpanded, isNetworkError)}
-      </div>
-    ` : '';
+    // Calculate position - use expanded position when expanded (expands toward center)
+    const currentPosition = isExpanded
+      ? getExpandedPositionForCorner(widgetState.corner)
+      : widgetPosition;
+    const positionStyle = `left: ${currentPosition.x}px; top: ${currentPosition.y}px;`;
 
+    // Selection mode overlay (separate from widget)
     const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(selectedElements.length, selectionWarning) : '';
 
-    shadowRoot.innerHTML = `
-      <style>${getWidgetStyles()}</style>
-      ${selectionModeOverlay}
-      <div class="feedback-widget-container draggable ${expandedClass} ${selectionModeClass}" style="left: ${widgetPosition.x}px; top: ${widgetPosition.y}px;">
-        <div class="feedback-button-wrapper">
-          <button
-            class="feedback-button ${draggingClass}"
-            aria-label="${isSelectionMode ? 'Exit selection mode' : 'Open feedback form'}"
-            aria-expanded="${isExpanded}"
-          >
+    // Form content (always rendered, visibility controlled by CSS)
+    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, selectedElements, isElementListExpanded, isNetworkError);
+
+    // Check if morph container already exists - if so, just update style/class
+    let morphContainer = morphContainerRef.current;
+    if (morphContainer && shadowRoot.contains(morphContainer)) {
+      // Update existing element (preserves CSS transitions!)
+      morphContainer.className = `feedback-widget-morph ${expandedClass} ${draggingClass}`.trim();
+      morphContainer.style.cssText = positionStyle;
+      morphContainer.setAttribute('aria-expanded', String(isExpanded));
+
+      // Update form content
+      const formLayer = morphContainer.querySelector('.form-layer');
+      if (formLayer) {
+        formLayer.innerHTML = formContent;
+      }
+
+      // Update selection mode overlay
+      const existingOverlay = shadowRoot.querySelector('.selection-mode-overlay');
+      if (isSelectionMode && !existingOverlay) {
+        // Add overlay
+        morphContainer.insertAdjacentHTML('beforebegin', selectionModeOverlay);
+      } else if (!isSelectionMode && existingOverlay) {
+        // Remove overlay
+        existingOverlay.remove();
+      } else if (isSelectionMode && existingOverlay) {
+        // Update overlay content - can't use outerHTML in shadow DOM, so remove and re-add
+        existingOverlay.remove();
+        morphContainer.insertAdjacentHTML('beforebegin', selectionModeOverlay);
+      }
+    } else {
+      // Initial render - create the full structure
+      shadowRoot.innerHTML = `
+        <style>${getWidgetStyles()}</style>
+        ${selectionModeOverlay}
+        <div
+          class="feedback-widget-morph ${expandedClass} ${draggingClass}"
+          style="${positionStyle}"
+          role="dialog"
+          aria-label="Feedback widget"
+          aria-expanded="${isExpanded}"
+        >
+          <!-- Button layer (visible when collapsed) -->
+          <div class="button-layer">
             ${MessageSquareIcon}
-          </button>
-          <div class="feedback-tooltip" role="tooltip">${isSelectionMode ? 'Exit Selection' : 'Feedback'}</div>
+          </div>
+
+          <!-- Form layer (visible when expanded) -->
+          <div class="form-layer">
+            ${formContent}
+          </div>
         </div>
-        ${formHTML}
-      </div>
-    `;
-
-    // Add event listeners
-    const button = shadowRoot.querySelector('.feedback-button');
-    if (button) {
-      // Handle mousedown for drag start (only when not in selection mode)
-      const onMouseDown = (e: Event) => {
-        if (!isSelectionMode) {
-          handleMouseDown(e as MouseEvent);
-        }
-      };
-      button.addEventListener('mousedown', onMouseDown);
-
-      // Handle click (only if not dragged)
-      const onClick = () => {
-        if (!hasDraggedRef.current) {
-          if (isSelectionMode) {
-            // Exit selection mode when clicking button
-            handleExitSelectionMode();
-          } else {
-            setIsExpanded((prev) => !prev);
-          }
-        }
-      };
-      button.addEventListener('click', onClick);
+      `;
+      morphContainer = shadowRoot.querySelector('.feedback-widget-morph') as HTMLDivElement;
+      morphContainerRef.current = morphContainer;
     }
 
-    // Selection mode event listeners
+    // Add event listeners to the morph container (only once)
+    if (morphContainerRef.current && !containerListenersAddedRef.current) {
+      const container = morphContainerRef.current;
+      containerListenersAddedRef.current = true;
+
+      // Handle mousedown for drag start (only on button layer, when collapsed)
+      // Uses refs to read current state values and get latest handler
+      container.addEventListener('mousedown', (e: Event) => {
+        if (!isSelectionModeRef.current && !isExpandedRef.current) {
+          handleMouseDownRef.current(e as MouseEvent);
+        }
+      });
+
+      // Handle click on button layer (only if not dragged)
+      // Uses refs to read current state values
+      container.addEventListener('click', () => {
+        // Only respond to clicks when collapsed
+        if (isExpandedRef.current) return;
+
+        // Reset hasDragged for next interaction
+        const wasDragged = hasDraggedRef.current;
+        hasDraggedRef.current = false;
+
+        if (!wasDragged) {
+          if (isSelectionModeRef.current) {
+            handleExitSelectionMode();
+          } else {
+            setIsExpanded(true);
+          }
+        }
+      });
+    }
+
+    // Selection mode event listeners (re-added when overlay is created/updated)
     if (isSelectionMode) {
       const doneButton = shadowRoot.querySelector('.selection-mode-done-button');
       if (doneButton) {
@@ -657,85 +722,67 @@ export function FeedbackWidget({
       }
     }
 
-    // Form event listeners (when expanded)
-    if (isExpanded) {
-      const closeButton = shadowRoot.querySelector('.feedback-close-button');
-      const form = shadowRoot.querySelector('.feedback-form-body');
-      const typeSelect = shadowRoot.querySelector('#feedback-type') as HTMLSelectElement;
-      const messageTextarea = shadowRoot.querySelector('#feedback-message') as HTMLTextAreaElement;
-      const retryButton = shadowRoot.querySelector('.feedback-retry-button');
-      const selectOnScreenButton = shadowRoot.querySelector('.feedback-select-button');
+    // Form event listeners (always present in DOM now)
+    const closeButton = shadowRoot.querySelector('.feedback-close-button');
+    const form = shadowRoot.querySelector('.feedback-form-body');
+    const typeSelect = shadowRoot.querySelector('#feedback-type') as HTMLSelectElement;
+    const messageTextarea = shadowRoot.querySelector('#feedback-message') as HTMLTextAreaElement;
+    const retryButton = shadowRoot.querySelector('.feedback-retry-button');
+    const selectOnScreenButton = shadowRoot.querySelector('.feedback-select-button');
 
-      if (closeButton) {
-        closeButton.addEventListener('click', handleClose);
-      }
+    if (closeButton) {
+      closeButton.addEventListener('click', handleClose);
+    }
 
-      if (form) {
-        form.addEventListener('submit', handleSubmit);
-      }
+    if (form) {
+      form.addEventListener('submit', handleSubmit);
+    }
 
-      if (typeSelect) {
-        typeSelect.addEventListener('change', (e) => {
-          setFeedbackType((e.target as HTMLSelectElement).value as FeedbackType);
-        });
-      }
-
-      if (messageTextarea) {
-        messageTextarea.addEventListener('input', (e) => {
-          setFeedbackMessage((e.target as HTMLTextAreaElement).value);
-        });
-      }
-
-      if (retryButton) {
-        retryButton.addEventListener('click', handleRetry);
-      }
-
-      if (selectOnScreenButton) {
-        selectOnScreenButton.addEventListener('click', handleEnterSelectionMode);
-      }
-
-      // Element list event listeners
-      const elementListBadge = shadowRoot.querySelector('.element-list-badge');
-      const clearAllButton = shadowRoot.querySelector('.element-list-clear-all');
-      const removeButtons = shadowRoot.querySelectorAll('.element-item-remove');
-
-      if (elementListBadge) {
-        elementListBadge.addEventListener('click', handleToggleElementList);
-      }
-
-      if (clearAllButton) {
-        clearAllButton.addEventListener('click', handleClearAllElements);
-      }
-
-      removeButtons.forEach((btn) => {
-        btn.addEventListener('click', (e) => {
-          const index = parseInt((e.currentTarget as HTMLElement).getAttribute('data-remove-index') || '0', 10);
-          handleRemoveElement(index);
-        });
+    if (typeSelect) {
+      typeSelect.addEventListener('change', (e) => {
+        setFeedbackType((e.target as HTMLSelectElement).value as FeedbackType);
       });
     }
 
-    // Cleanup function
+    if (messageTextarea) {
+      messageTextarea.addEventListener('input', (e) => {
+        setFeedbackMessage((e.target as HTMLTextAreaElement).value);
+      });
+    }
+
+    if (retryButton) {
+      retryButton.addEventListener('click', handleRetry);
+    }
+
+    if (selectOnScreenButton) {
+      selectOnScreenButton.addEventListener('click', handleEnterSelectionMode);
+    }
+
+    // Element list event listeners
+    const elementListBadge = shadowRoot.querySelector('.element-list-badge');
+    const clearAllButton = shadowRoot.querySelector('.element-list-clear-all');
+    const removeButtons = shadowRoot.querySelectorAll('.element-item-remove');
+
+    if (elementListBadge) {
+      elementListBadge.addEventListener('click', handleToggleElementList);
+    }
+
+    if (clearAllButton) {
+      clearAllButton.addEventListener('click', handleClearAllElements);
+    }
+
+    removeButtons.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const index = parseInt((e.currentTarget as HTMLElement).getAttribute('data-remove-index') || '0', 10);
+        handleRemoveElement(index);
+      });
+    });
+
+    // Cleanup is minimal - container listeners use refs so they stay valid
+    // Form element listeners are on elements that get replaced via innerHTML
     return () => {
-      const button = shadowRoot.querySelector('.feedback-button');
-      if (button) {
-        button.removeEventListener('mousedown', handleMouseDown as EventListener);
-        button.removeEventListener('click', () => {});
-      }
-      if (isSelectionMode) {
-        const doneButton = shadowRoot.querySelector('.selection-mode-done-button');
-        if (doneButton) doneButton.removeEventListener('click', handleExitSelectionMode);
-      }
-      if (isExpanded) {
-        const closeButton = shadowRoot.querySelector('.feedback-close-button');
-        const form = shadowRoot.querySelector('.feedback-form-body');
-        const retryButton = shadowRoot.querySelector('.feedback-retry-button');
-        const selectOnScreenButton = shadowRoot.querySelector('.feedback-select-button');
-        if (closeButton) closeButton.removeEventListener('click', handleClose);
-        if (form) form.removeEventListener('submit', handleSubmit);
-        if (retryButton) retryButton.removeEventListener('click', handleRetry);
-        if (selectOnScreenButton) selectOnScreenButton.removeEventListener('click', handleEnterSelectionMode);
-      }
+      // Nothing to clean up - container listeners are permanent and use refs
+      // Form listeners are on elements that get replaced each render
     };
   }, [
     effectivePosition,

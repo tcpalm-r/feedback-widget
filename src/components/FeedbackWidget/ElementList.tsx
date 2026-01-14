@@ -128,9 +128,9 @@ export function getElementListStyles(): string {
       justify-content: space-between;
       width: 100%;
       padding: 10px 12px;
-      background-color: #eef2ff;
-      color: #4f46e5;
-      border: 1px solid #c7d2fe;
+      background-color: #e6f6fc;
+      color: #0090c7;
+      border: 1px solid #80d1f0;
       border-radius: 8px;
       font-size: 13px;
       font-weight: 500;
@@ -139,13 +139,13 @@ export function getElementListStyles(): string {
     }
 
     .element-list-badge:hover {
-      background-color: #e0e7ff;
-      border-color: #a5b4fc;
+      background-color: #ccedfa;
+      border-color: #4dc3eb;
     }
 
     .element-list-badge:focus {
       outline: none;
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+      box-shadow: 0 0 0 2px rgba(0, 163, 225, 0.3);
     }
 
     .element-list-container.expanded .element-list-badge {
@@ -177,7 +177,7 @@ export function getElementListStyles(): string {
     /* Expanded List */
     .element-list-expanded {
       background-color: #f8fafc;
-      border: 1px solid #c7d2fe;
+      border: 1px solid #80d1f0;
       border-top: none;
       border-radius: 0 0 8px 8px;
       overflow: hidden;
@@ -211,7 +211,7 @@ export function getElementListStyles(): string {
       width: 20px;
       height: 20px;
       border-radius: 50%;
-      background-color: #6366f1;
+      background-color: #00A3E1;
       color: white;
       font-size: 11px;
       font-weight: 600;

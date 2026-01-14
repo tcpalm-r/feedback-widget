@@ -1,18 +1,20 @@
 // LocalStorage utilities for FeedbackWidget position persistence
 
+export type WidgetCorner = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+
 export interface WidgetPosition {
   x: number;
   y: number;
 }
 
-const STORAGE_KEY = 'feedback-widget-position';
+const STORAGE_KEY = 'feedback-widget-corner';
 
 /**
- * Save widget position to localStorage
+ * Save widget corner to localStorage
  */
-export function savePosition(position: WidgetPosition): void {
+export function saveCorner(corner: WidgetCorner): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(position));
+    localStorage.setItem(STORAGE_KEY, corner);
   } catch {
     // localStorage may not be available (SSR, private browsing, etc.)
     console.warn('FeedbackWidget: Unable to save position to localStorage');
@@ -20,19 +22,17 @@ export function savePosition(position: WidgetPosition): void {
 }
 
 /**
- * Load widget position from localStorage
- * Returns null if no position is saved or localStorage is unavailable
+ * Load widget corner from localStorage
+ * Returns null if no corner is saved or localStorage is unavailable
  */
-export function loadPosition(): WidgetPosition | null {
+export function loadCorner(): WidgetCorner | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return null;
 
-    const parsed = JSON.parse(stored) as WidgetPosition;
-
-    // Validate the parsed data has required properties
-    if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-      return parsed;
+    // Validate it's a valid corner
+    if (['bottom-right', 'bottom-left', 'top-right', 'top-left'].includes(stored)) {
+      return stored as WidgetCorner;
     }
 
     return null;
@@ -43,9 +43,9 @@ export function loadPosition(): WidgetPosition | null {
 }
 
 /**
- * Clear saved widget position from localStorage
+ * Clear saved widget corner from localStorage
  */
-export function clearPosition(): void {
+export function clearCorner(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
@@ -54,32 +54,17 @@ export function clearPosition(): void {
 }
 
 /**
- * Constrain position within viewport bounds
- * Ensures the widget stays fully visible on screen
+ * Determine nearest corner based on x/y position
  */
-export function constrainToViewport(
-  position: WidgetPosition,
-  widgetWidth: number,
-  widgetHeight: number
-): WidgetPosition {
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
-  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
+export function getNearestCorner(x: number, y: number): WidgetCorner {
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 600;
 
-  // Minimum padding from edges
-  const padding = 8;
+  const isLeft = x < viewportWidth / 2;
+  const isTop = y < viewportHeight / 2;
 
-  const constrainedX = Math.max(
-    padding,
-    Math.min(position.x, viewportWidth - widgetWidth - padding)
-  );
-
-  const constrainedY = Math.max(
-    padding,
-    Math.min(position.y, viewportHeight - widgetHeight - padding)
-  );
-
-  return {
-    x: constrainedX,
-    y: constrainedY,
-  };
+  if (isTop && isLeft) return 'top-left';
+  if (isTop && !isLeft) return 'top-right';
+  if (!isTop && isLeft) return 'bottom-left';
+  return 'bottom-right';
 }

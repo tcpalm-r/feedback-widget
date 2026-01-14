@@ -105,8 +105,8 @@ export function getSelectionModeStyles(): string {
 
     .feedback-select-button:focus {
       outline: none;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.2);
+      border-color: #00A3E1;
     }
 
     .feedback-select-button:disabled {
@@ -188,7 +188,7 @@ export function getSelectionModeStyles(): string {
       width: 20px;
       height: 20px;
       fill: none;
-      stroke: #818cf8;
+      stroke: #4dc3eb;
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
@@ -218,7 +218,7 @@ export function getSelectionModeStyles(): string {
       align-items: center;
       gap: 6px;
       padding: 8px 16px;
-      background-color: #6366f1;
+      background-color: #00A3E1;
       color: #ffffff;
       border: none;
       border-radius: 8px;
@@ -229,12 +229,12 @@ export function getSelectionModeStyles(): string {
     }
 
     .selection-mode-done-button:hover {
-      background-color: #4f46e5;
+      background-color: #0090c7;
     }
 
     .selection-mode-done-button:focus {
       outline: none;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.4);
+      box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.4);
     }
 
     .selection-mode-done-button svg {

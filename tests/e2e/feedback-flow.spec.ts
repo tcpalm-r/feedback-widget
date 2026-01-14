@@ -104,8 +104,8 @@ test.describe('Feedback Widget', () => {
     await page.goto('/demo');
     // Wait for the widget host to be attached
     await page.waitForSelector('[data-feedback-widget]', { state: 'attached' });
-    // Wait for the shadow DOM button to be rendered
-    await waitForShadowElement(page, '.feedback-button');
+    // Wait for the shadow DOM morph container to be rendered
+    await waitForShadowElement(page, '.feedback-widget-morph');
   });
 
   test('widget renders on demo page', async ({ page }) => {
@@ -113,26 +113,22 @@ test.describe('Feedback Widget', () => {
     const widget = page.locator('[data-feedback-widget]');
     await expect(widget).toBeAttached();
 
-    // Check shadow DOM contains the button
-    const buttonExists = await shadowElementExists(page, '.feedback-button');
-    expect(buttonExists).toBe(true);
+    // Check shadow DOM contains the morph container
+    const containerExists = await shadowElementExists(page, '.feedback-widget-morph');
+    expect(containerExists).toBe(true);
 
-    // Check button is visible
-    const buttonVisible = await isShadowElementVisible(page, '.feedback-button');
-    expect(buttonVisible).toBe(true);
-
-    // Check tooltip text
-    const tooltipText = await getShadowText(page, '.feedback-tooltip');
-    expect(tooltipText).toContain('Feedback');
+    // Check button layer is visible
+    const buttonLayerVisible = await isShadowElementVisible(page, '.button-layer');
+    expect(buttonLayerVisible).toBe(true);
   });
 
   test('form opens and closes', async ({ page }) => {
-    // Click to open the form
-    await clickShadowElement(page, '.feedback-button');
+    // Click to open the form (click the morph container when collapsed)
+    await clickShadowElement(page, '.feedback-widget-morph');
 
-    // Wait for form panel to appear
-    await waitForShadowElement(page, '.feedback-form-panel');
-    let formVisible = await isShadowElementVisible(page, '.feedback-form-panel');
+    // Wait for expanded state
+    await waitForShadowElement(page, '.feedback-widget-morph.expanded');
+    const formVisible = await isShadowElementVisible(page, '.form-layer');
     expect(formVisible).toBe(true);
 
     // Check form elements are present
@@ -151,14 +147,19 @@ test.describe('Feedback Widget', () => {
     // Wait for animation
     await page.waitForTimeout(300);
 
-    // Form should be hidden
-    formVisible = await isShadowElementVisible(page, '.feedback-form-panel');
-    expect(formVisible).toBe(false);
+    // Widget should be collapsed (no expanded class)
+    const isCollapsed = await page.evaluate(() => {
+      const host = document.querySelector('[data-feedback-widget]');
+      if (!host || !host.shadowRoot) return false;
+      const morph = host.shadowRoot.querySelector('.feedback-widget-morph');
+      return morph && !morph.classList.contains('expanded');
+    });
+    expect(isCollapsed).toBe(true);
   });
 
   test('enter selection mode and select elements', async ({ page }) => {
     // Click to open the form
-    await clickShadowElement(page, '.feedback-button');
+    await clickShadowElement(page, '.feedback-widget-morph');
     await waitForShadowElement(page, '.feedback-select-button');
 
     // Click "Select on Screen" button
@@ -200,8 +201,8 @@ test.describe('Feedback Widget', () => {
     expect(overlayExists).toBe(false);
 
     // Form should be visible again
-    await waitForShadowElement(page, '.feedback-form-panel');
-    const formVisible = await isShadowElementVisible(page, '.feedback-form-panel');
+    await waitForShadowElement(page, '.feedback-widget-morph.expanded');
+    const formVisible = await isShadowElementVisible(page, '.form-layer');
     expect(formVisible).toBe(true);
 
     // If selection worked, check for element list badge
@@ -216,7 +217,7 @@ test.describe('Feedback Widget', () => {
     // Skip the selection part if it's not reliable and test the UI directly
 
     // Open the form
-    await clickShadowElement(page, '.feedback-button');
+    await clickShadowElement(page, '.feedback-widget-morph');
     await waitForShadowElement(page, '.feedback-select-button');
 
     // Enter selection mode
@@ -274,14 +275,14 @@ test.describe('Feedback Widget', () => {
       }
     } else {
       // Selection didn't work, but we can still verify the form is visible
-      const formVisible = await isShadowElementVisible(page, '.feedback-form-panel');
+      const formVisible = await isShadowElementVisible(page, '.form-layer');
       expect(formVisible).toBe(true);
     }
   });
 
   test('submit feedback with selected elements', async ({ page }) => {
     // Open the form
-    await clickShadowElement(page, '.feedback-button');
+    await clickShadowElement(page, '.feedback-widget-morph');
     await waitForShadowElement(page, '.feedback-select-button');
 
     // Enter selection mode
@@ -321,7 +322,7 @@ test.describe('Feedback Widget', () => {
 
   test('ESC key exits selection mode', async ({ page }) => {
     // Open the form
-    await clickShadowElement(page, '.feedback-button');
+    await clickShadowElement(page, '.feedback-widget-morph');
     await waitForShadowElement(page, '.feedback-select-button');
 
     // Enter selection mode
@@ -342,8 +343,8 @@ test.describe('Feedback Widget', () => {
 
     // Form should be visible - try to wait for it
     try {
-      await waitForShadowElement(page, '.feedback-form-panel', 5000);
-      const formVisible = await isShadowElementVisible(page, '.feedback-form-panel');
+      await waitForShadowElement(page, '.feedback-widget-morph.expanded', 5000);
+      const formVisible = await isShadowElementVisible(page, '.form-layer');
       expect(formVisible).toBe(true);
     } catch {
       // If form doesn't appear, the test still passes as long as selection mode exited
@@ -353,7 +354,7 @@ test.describe('Feedback Widget', () => {
 
   test('clicking widget button exits selection mode', async ({ page }) => {
     // Open the form
-    await clickShadowElement(page, '.feedback-button');
+    await clickShadowElement(page, '.feedback-widget-morph');
     await waitForShadowElement(page, '.feedback-select-button');
 
     // Enter selection mode
@@ -365,7 +366,7 @@ test.describe('Feedback Widget', () => {
     expect(overlayExists).toBe(true);
 
     // Click widget button to exit selection mode
-    await clickShadowElement(page, '.feedback-button');
+    await clickShadowElement(page, '.feedback-widget-morph');
     await page.waitForTimeout(500);
 
     // Selection overlay should be gone
@@ -374,8 +375,8 @@ test.describe('Feedback Widget', () => {
 
     // Form should be visible
     try {
-      await waitForShadowElement(page, '.feedback-form-panel', 5000);
-      const formVisible = await isShadowElementVisible(page, '.feedback-form-panel');
+      await waitForShadowElement(page, '.feedback-widget-morph.expanded', 5000);
+      const formVisible = await isShadowElementVisible(page, '.form-layer');
       expect(formVisible).toBe(true);
     } catch {
       // Form visibility is secondary - main test is that selection mode exited
@@ -384,7 +385,7 @@ test.describe('Feedback Widget', () => {
 
   test('form validation requires message', async ({ page }) => {
     // Open the form
-    await clickShadowElement(page, '.feedback-button');
+    await clickShadowElement(page, '.feedback-widget-morph');
     await waitForShadowElement(page, '.feedback-submit-button');
 
     // Submit without filling in the message

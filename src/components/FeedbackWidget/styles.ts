@@ -4,14 +4,14 @@ import { getSelectionModeStyles } from './SelectionMode';
 import { getElementListStyles } from './ElementList';
 
 export const colors = {
-  primary: '#6366f1', // Indigo - main brand color
-  primaryHover: '#4f46e5', // Darker indigo on hover
-  primaryLight: '#818cf8', // Lighter indigo for accents
+  primary: '#00A3E1', // Sonance Blue "The Beam" - accent color
+  primaryHover: '#0090c7', // Darker Sonance blue on hover
+  primaryLight: '#4dc3eb', // Lighter Sonance blue for accents
   background: '#ffffff',
-  backgroundDark: '#1f2937',
+  backgroundDark: '#333F48', // Sonance Charcoal
   text: '#ffffff',
-  textDark: '#111827',
-  border: '#e5e7eb',
+  textDark: '#333F48', // Sonance Charcoal
+  border: '#D9D9D6', // Sonance Light Gray
   shadow: 'rgba(0, 0, 0, 0.1)',
   shadowDark: 'rgba(0, 0, 0, 0.25)',
 };
@@ -26,75 +26,64 @@ export const getWidgetStyles = (): string => `
     box-sizing: border-box;
   }
 
-  .feedback-widget-container {
+  /* ===== MORPHING WIDGET CONTAINER ===== */
+  .feedback-widget-morph {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
     z-index: 999999;
     font-family: inherit;
-  }
-
-  .feedback-widget-container.draggable {
-    bottom: auto;
-    right: auto;
-  }
-
-  .feedback-widget-container.top-right {
-    top: 24px;
-    bottom: auto;
-    right: 24px;
-  }
-
-  .feedback-widget-container.top-left {
-    top: 24px;
-    bottom: auto;
-    left: 24px;
-    right: auto;
-  }
-
-  .feedback-widget-container.bottom-left {
-    bottom: 24px;
-    left: 24px;
-    right: auto;
-  }
-
-  .feedback-button {
     width: 56px;
     height: 56px;
     border-radius: 50%;
     background-color: ${colors.primary};
-    border: none;
-    cursor: grab;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     box-shadow: 0 4px 12px ${colors.shadowDark};
-    transition: all 0.2s ease-in-out;
-    position: relative;
+    transition:
+      left 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+      top 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+      width 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+      height 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+      border-radius 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+      background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    cursor: grab;
     user-select: none;
     -webkit-user-select: none;
   }
 
-  .feedback-button.dragging {
+  .feedback-widget-morph.dragging {
     cursor: grabbing;
+    transition: none;
   }
 
-  .feedback-button:hover {
-    background-color: ${colors.primaryHover};
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px ${colors.shadowDark};
+  .feedback-widget-morph.expanded {
+    width: 320px;
+    height: 450px;
+    border-radius: 12px;
+    background-color: ${colors.background};
+    box-shadow: 0 10px 40px ${colors.shadowDark}, 0 0 0 1px ${colors.border};
+    cursor: default;
   }
 
-  .feedback-button:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px ${colors.primaryLight}, 0 4px 12px ${colors.shadowDark};
+  /* Position is always set via inline style (left/top) */
+
+  /* ===== BUTTON LAYER (visible when collapsed) ===== */
+  .button-layer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.15s ease;
+    pointer-events: auto;
   }
 
-  .feedback-button:active {
-    transform: scale(0.98);
+  .expanded .button-layer {
+    opacity: 0;
+    pointer-events: none;
   }
 
-  .feedback-button svg {
+  .button-layer svg {
     width: 24px;
     height: 24px;
     color: ${colors.text};
@@ -105,12 +94,40 @@ export const getWidgetStyles = (): string => `
     stroke-linejoin: round;
   }
 
-  .feedback-tooltip {
+  .feedback-widget-morph:not(.expanded):hover {
+    background-color: ${colors.primaryHover};
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px ${colors.shadowDark};
+  }
+
+  .feedback-widget-morph:not(.expanded):active {
+    transform: scale(0.98);
+  }
+
+  /* ===== FORM LAYER (visible when expanded) ===== */
+  .form-layer {
     position: absolute;
-    right: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    margin-right: 12px;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease 0.15s;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .expanded .form-layer {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Collapse transition - no delay */
+  .feedback-widget-morph:not(.expanded) .form-layer {
+    transition: opacity 0.1s ease;
+  }
+
+  /* ===== TOOLTIP ===== */
+  .feedback-tooltip {
+    position: fixed;
     background-color: ${colors.backgroundDark};
     color: ${colors.text};
     padding: 8px 12px;
@@ -122,51 +139,24 @@ export const getWidgetStyles = (): string => `
     visibility: hidden;
     transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
     pointer-events: none;
+    z-index: 999998;
   }
 
-  .feedback-tooltip::after {
-    content: '';
-    position: absolute;
-    left: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    border: 6px solid transparent;
-    border-left-color: ${colors.backgroundDark};
-  }
-
-  .feedback-button:hover + .feedback-tooltip,
-  .feedback-button:focus + .feedback-tooltip {
+  .feedback-tooltip.visible {
     opacity: 1;
     visibility: visible;
   }
 
-  .feedback-button-wrapper {
-    position: relative;
-    display: inline-block;
-  }
-
-  /* Form Panel Styles */
+  /* Form Panel Styles (inside form-layer) */
   .feedback-form {
-    background-color: ${colors.background};
-    border-radius: 12px;
-    box-shadow: 0 10px 40px ${colors.shadowDark}, 0 0 0 1px ${colors.border};
-    width: 320px;
-    overflow: hidden;
-    animation: feedbackFormSlideIn 0.2s ease-out;
-  }
-
-  @keyframes feedbackFormSlideIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px) scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: transparent;
   }
 
   .feedback-form-header {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -216,10 +206,12 @@ export const getWidgetStyles = (): string => `
   }
 
   .feedback-form-body {
+    flex: 1;
     padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 16px;
+    overflow-y: auto;
   }
 
   .feedback-form-field {
@@ -258,7 +250,7 @@ export const getWidgetStyles = (): string => `
   .feedback-select:focus {
     outline: none;
     border-color: ${colors.primary};
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.15);
   }
 
   .feedback-textarea {
@@ -286,7 +278,7 @@ export const getWidgetStyles = (): string => `
   .feedback-textarea:focus {
     outline: none;
     border-color: ${colors.primary};
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.15);
   }
 
   .feedback-submit-button {
@@ -308,23 +300,11 @@ export const getWidgetStyles = (): string => `
 
   .feedback-submit-button:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.3);
   }
 
   .feedback-submit-button:active {
     transform: scale(0.98);
-  }
-
-  /* Form panel positioning */
-  .feedback-form-panel {
-    position: absolute;
-    bottom: calc(100% + 12px);
-    right: 0;
-  }
-
-  /* Hide button wrapper when expanded */
-  .feedback-widget-container.expanded .feedback-button-wrapper {
-    display: none;
   }
 
   /* Loading spinner animation */
@@ -366,10 +346,12 @@ export const getWidgetStyles = (): string => `
 
   /* Success state */
   .feedback-success-body {
+    flex: 1;
     padding: 32px 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 16px;
     text-align: center;
   }

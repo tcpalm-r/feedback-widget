@@ -1,28 +1,45 @@
 // External store for widget position - allows useSyncExternalStore pattern
 import {
-  savePosition,
-  loadPosition,
-  constrainToViewport,
-  type WidgetPosition,
+  saveCorner,
+  loadCorner,
+  getNearestCorner,
+  type WidgetCorner,
 } from './storage';
 
-const WIDGET_SIZE = 56;
-const PADDING = 24;
+export const WIDGET_SIZE = 56;
+export const EXPANDED_WIDTH = 320;
+export const EXPANDED_HEIGHT = 450;
+export const PADDING = 24;
 
 type Listener = () => void;
 
-let position: WidgetPosition | null = null;
+// Store the corner position
+let corner: WidgetCorner = 'bottom-right';
 const listeners = new Set<Listener>();
 
+// Track if we're currently dragging (for temporary x/y position)
+let isDragging = false;
+let isSnapping = false; // True when transitioning from drag to corner
+let dragPosition = { x: 0, y: 0 };
+
+// Cached snapshot to avoid infinite loops with useSyncExternalStore
+let cachedSnapshot: { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean } | null = null;
+
+function invalidateSnapshot() {
+  cachedSnapshot = null;
+}
+
 function emitChange() {
+  invalidateSnapshot();
   for (const listener of listeners) {
     listener();
   }
 }
 
-function getDefaultPosition(
-  positionProp: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' = 'bottom-right'
-): WidgetPosition {
+/**
+ * Get x/y coordinates for a given corner (collapsed state)
+ */
+export function getPositionForCorner(c: WidgetCorner): { x: number; y: number } {
   if (typeof window === 'undefined') {
     return { x: 0, y: 0 };
   }
@@ -30,7 +47,7 @@ function getDefaultPosition(
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
 
-  switch (positionProp) {
+  switch (c) {
     case 'top-left':
       return { x: PADDING, y: PADDING };
     case 'top-right':
@@ -46,43 +63,189 @@ function getDefaultPosition(
   }
 }
 
-export function initializePosition(
-  positionProp: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' = 'bottom-right'
-): void {
-  if (position !== null) return; // Already initialized
-
-  const savedPosition = loadPosition();
-  if (savedPosition) {
-    position = constrainToViewport(savedPosition, WIDGET_SIZE, WIDGET_SIZE);
-  } else {
-    position = getDefaultPosition(positionProp);
-  }
-  emitChange();
-}
-
-export function getPosition(): WidgetPosition {
-  if (position === null) {
+/**
+ * Get x/y coordinates for expanded state - expands toward center of viewport
+ */
+export function getExpandedPositionForCorner(c: WidgetCorner): { x: number; y: number } {
+  if (typeof window === 'undefined') {
     return { x: 0, y: 0 };
   }
-  return position;
-}
 
-export function setPosition(newPosition: WidgetPosition): void {
-  position = newPosition;
-  emitChange();
-}
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
 
-export function updateAndSavePosition(newPosition: WidgetPosition): void {
-  position = newPosition;
-  savePosition(newPosition);
-  emitChange();
-}
-
-export function constrainPositionToViewport(): void {
-  if (position !== null) {
-    position = constrainToViewport(position, WIDGET_SIZE, WIDGET_SIZE);
-    emitChange();
+  switch (c) {
+    case 'top-left':
+      // Anchor top-left, expand down-right
+      return { x: PADDING, y: PADDING };
+    case 'top-right':
+      // Anchor top-right, expand down-left
+      return { x: viewportWidth - EXPANDED_WIDTH - PADDING, y: PADDING };
+    case 'bottom-left':
+      // Anchor bottom-left, expand up-right
+      return { x: PADDING, y: viewportHeight - EXPANDED_HEIGHT - PADDING };
+    case 'bottom-right':
+    default:
+      // Anchor bottom-right, expand up-left
+      return {
+        x: viewportWidth - EXPANDED_WIDTH - PADDING,
+        y: viewportHeight - EXPANDED_HEIGHT - PADDING,
+      };
   }
+}
+
+let initialized = false;
+
+export function initializePosition(
+  positionProp: WidgetCorner = 'bottom-right'
+): void {
+  if (initialized) return;
+  initialized = true;
+
+  // Setup resize listener to keep widget responsive
+  setupResizeListener();
+
+  const savedCorner = loadCorner();
+  corner = savedCorner || positionProp;
+  emitChange();
+}
+
+export function resetPosition(
+  positionProp: WidgetCorner = 'bottom-right'
+): void {
+  try {
+    localStorage.removeItem('feedback-widget-corner');
+  } catch {
+    // Ignore
+  }
+  corner = positionProp;
+  emitChange();
+}
+
+export function getCorner(): WidgetCorner {
+  return corner;
+}
+
+export function setCorner(newCorner: WidgetCorner): void {
+  corner = newCorner;
+  saveCorner(newCorner);
+  emitChange();
+}
+
+/**
+ * Start dragging - switches to x/y based positioning temporarily
+ */
+export function startDrag(): void {
+  isDragging = true;
+  dragPosition = getPositionForCorner(corner);
+  emitChange();
+}
+
+/**
+ * Update position during drag
+ */
+export function updateDragPosition(x: number, y: number): void {
+  if (!isDragging) return;
+  dragPosition = { x, y };
+  emitChange();
+}
+
+/**
+ * End dragging - snaps to nearest corner with animation
+ */
+export function endDrag(): void {
+  if (!isDragging) return;
+
+  // Calculate center of widget
+  const centerX = dragPosition.x + WIDGET_SIZE / 2;
+  const centerY = dragPosition.y + WIDGET_SIZE / 2;
+
+  // Determine the new corner
+  const newCorner = getNearestCorner(centerX, centerY);
+
+  // Step 1: Remove dragging state but enter snapping state
+  // isSnapping keeps returning dragPosition so CSS transition is enabled at current position
+  isDragging = false;
+  isSnapping = true;
+  emitChange();
+
+  // Step 2: Use setTimeout to ensure browser has painted with transitions enabled
+  // before changing position to trigger the CSS transition
+  setTimeout(() => {
+    corner = newCorner;
+    saveCorner(newCorner);
+    cachedCornerPosition = null; // Invalidate cache
+    cachedCornerForPosition = null;
+    isSnapping = false; // Now getPosition() returns corner position, CSS animates
+    emitChange();
+  }, 50); // 50ms delay ensures paint has occurred
+}
+
+/**
+ * Cancel drag without saving
+ */
+export function cancelDrag(): void {
+  isDragging = false;
+  isSnapping = false;
+  emitChange();
+}
+
+/**
+ * Check if currently dragging
+ */
+export function getIsDragging(): boolean {
+  return isDragging;
+}
+
+// Cached corner position (recalculated when corner changes or window resizes)
+let cachedCornerPosition: { x: number; y: number } | null = null;
+let cachedCornerForPosition: WidgetCorner | null = null;
+
+// Track viewport size to detect resize
+let lastViewportWidth = 0;
+let lastViewportHeight = 0;
+
+// Setup resize listener (called once when store is first used)
+let resizeListenerAdded = false;
+function setupResizeListener() {
+  if (resizeListenerAdded || typeof window === 'undefined') return;
+  resizeListenerAdded = true;
+
+  window.addEventListener('resize', () => {
+    const newWidth = window.innerWidth;
+    const newHeight = window.innerHeight;
+
+    // Only emit change if size actually changed
+    if (newWidth !== lastViewportWidth || newHeight !== lastViewportHeight) {
+      lastViewportWidth = newWidth;
+      lastViewportHeight = newHeight;
+      // Invalidate cached positions
+      cachedCornerPosition = null;
+      cachedCornerForPosition = null;
+      emitChange();
+    }
+  });
+
+  // Initialize viewport size
+  lastViewportWidth = window.innerWidth;
+  lastViewportHeight = window.innerHeight;
+}
+
+/**
+ * Get current position (either drag position or corner position)
+ */
+export function getPosition(): { x: number; y: number } {
+  // During dragging OR snapping, return the drag position
+  // isSnapping keeps the position at dragPosition while CSS transition is set up
+  if (isDragging || isSnapping) {
+    return dragPosition;
+  }
+  // Cache corner position to avoid creating new objects
+  if (cachedCornerPosition === null || cachedCornerForPosition !== corner) {
+    cachedCornerPosition = getPositionForCorner(corner);
+    cachedCornerForPosition = corner;
+  }
+  return cachedCornerPosition;
 }
 
 export function subscribe(listener: Listener): () => void {
@@ -92,12 +255,24 @@ export function subscribe(listener: Listener): () => void {
   };
 }
 
-export function getSnapshot(): WidgetPosition {
-  return getPosition();
+export function getSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean } {
+  if (cachedSnapshot === null) {
+    cachedSnapshot = {
+      corner,
+      position: getPosition(),
+      isDragging,
+    };
+  }
+  return cachedSnapshot;
 }
 
-export function getServerSnapshot(): WidgetPosition {
-  return { x: 0, y: 0 };
+export function getServerSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean } {
+  return {
+    corner: 'bottom-right',
+    position: { x: 0, y: 0 },
+    isDragging: false,
+  };
 }
 
-export { WIDGET_SIZE };
+// Re-export type
+export type { WidgetCorner };
