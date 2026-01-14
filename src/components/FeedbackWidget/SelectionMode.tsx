@@ -142,6 +142,7 @@ export function getSelectionModeStyles(): string {
       justify-content: flex-start;
       align-items: center;
       padding-top: 20px;
+      pointer-events: none;
     }
 
     /* Toolbar at top */
@@ -157,6 +158,7 @@ export function getSelectionModeStyles(): string {
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
       max-width: 90%;
       animation: selectionToolbarSlideIn 0.2s ease-out;
+      pointer-events: auto;
     }
 
     @keyframes selectionToolbarSlideIn {
@@ -257,6 +259,7 @@ export function getSelectionModeStyles(): string {
       border-radius: 8px;
       font-size: 13px;
       animation: selectionHintFadeIn 0.3s ease-out 0.2s both;
+      pointer-events: auto;
     }
 
     @keyframes selectionHintFadeIn {
@@ -303,6 +306,7 @@ export function getSelectionModeStyles(): string {
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       animation: warningSlideIn 0.2s ease-out;
       z-index: 999999;
+      pointer-events: auto;
     }
 
     @keyframes warningSlideIn {
