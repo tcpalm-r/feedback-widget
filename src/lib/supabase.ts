@@ -7,13 +7,17 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 // Log warnings for missing env variables in development
 if (typeof window !== 'undefined') {
   if (!supabaseUrl) {
-    console.warn(
-      '[FeedbackWidget] Missing NEXT_PUBLIC_SUPABASE_URL environment variable. Feedback submissions will fail.'
+    console.error(
+      '[FeedbackWidget] NEXT_PUBLIC_SUPABASE_URL is not set. ' +
+      'Please add it to your .env.local file. ' +
+      'See .env.example for the required format.'
     );
   }
   if (!supabaseAnonKey) {
-    console.warn(
-      '[FeedbackWidget] Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable. Feedback submissions will fail.'
+    console.error(
+      '[FeedbackWidget] NEXT_PUBLIC_SUPABASE_ANON_KEY is not set. ' +
+      'Please add it to your .env.local file. ' +
+      'See .env.example for the required format.'
     );
   }
 }
@@ -52,6 +56,76 @@ export interface FeedbackSubmission {
 export interface SubmitFeedbackResult {
   success: boolean;
   error?: string;
+  isNetworkError?: boolean;
+}
+
+/**
+ * Get a user-friendly error message for Supabase errors
+ */
+function getUserFriendlyErrorMessage(error: unknown): { message: string; isNetworkError: boolean } {
+  // Check for network/connection errors
+  if (error instanceof Error) {
+    const errorMessage = error.message.toLowerCase();
+
+    // Network errors
+    if (
+      errorMessage.includes('network') ||
+      errorMessage.includes('fetch') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('failed to fetch') ||
+      errorMessage.includes('networkerror') ||
+      error.name === 'TypeError' // fetch failures often throw TypeError
+    ) {
+      return {
+        message: 'Unable to connect. Please check your internet connection and try again.',
+        isNetworkError: true,
+      };
+    }
+
+    // CORS errors (usually configuration issue)
+    if (errorMessage.includes('cors')) {
+      return {
+        message: 'Connection blocked. Please contact support if this persists.',
+        isNetworkError: false,
+      };
+    }
+  }
+
+  // Supabase-specific errors
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const supabaseError = error as { code: string; message?: string };
+
+    // Rate limiting
+    if (supabaseError.code === '429' || supabaseError.code === 'PGRST301') {
+      return {
+        message: 'Too many requests. Please wait a moment and try again.',
+        isNetworkError: false,
+      };
+    }
+
+    // Auth/permission errors
+    if (supabaseError.code === '401' || supabaseError.code === '403') {
+      return {
+        message: 'Unable to submit feedback. Please try again later.',
+        isNetworkError: false,
+      };
+    }
+
+    // Server errors
+    if (supabaseError.code?.startsWith('5')) {
+      return {
+        message: 'Server error. Please try again in a few moments.',
+        isNetworkError: true,
+      };
+    }
+  }
+
+  // Default error
+  return {
+    message: 'Something went wrong. Please try again.',
+    isNetworkError: false,
+  };
 }
 
 export async function submitFeedback(
@@ -62,7 +136,8 @@ export async function submitFeedback(
   if (!client) {
     return {
       success: false,
-      error: 'Supabase is not configured. Please check your environment variables.',
+      error: 'Feedback is not configured. Please contact the site administrator.',
+      isNetworkError: false,
     };
   }
 
@@ -71,18 +146,22 @@ export async function submitFeedback(
 
     if (error) {
       console.error('[FeedbackWidget] Supabase error:', error);
+      const { message, isNetworkError } = getUserFriendlyErrorMessage(error);
       return {
         success: false,
-        error: error.message || 'Failed to submit feedback',
+        error: message,
+        isNetworkError,
       };
     }
 
     return { success: true };
   } catch (err) {
     console.error('[FeedbackWidget] Submission error:', err);
+    const { message, isNetworkError } = getUserFriendlyErrorMessage(err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'An unexpected error occurred',
+      error: message,
+      isNetworkError,
     };
   }
 }

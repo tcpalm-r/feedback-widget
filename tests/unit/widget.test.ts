@@ -366,7 +366,7 @@ describe('Widget Render and Form Validation', () => {
     it('should render error state with default message', () => {
       const html = getFeedbackFormHTML('general', '', 'error')
 
-      expect(html).toContain('Failed to submit feedback')
+      expect(html).toContain('Something went wrong. Please try again.')
     })
 
     it('should render all feedback type options', () => {

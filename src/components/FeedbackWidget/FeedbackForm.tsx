@@ -64,7 +64,8 @@ export function getFeedbackFormHTML(
   submissionState: SubmissionState = 'idle',
   errorMessage: string = '',
   selectedElements: SelectedElementData[] = [],
-  isElementListExpanded: boolean = false
+  isElementListExpanded: boolean = false,
+  isNetworkError: boolean = false
 ): string {
   const typeOptions = feedbackTypeOptions
     .map(
@@ -116,8 +117,8 @@ export function getFeedbackFormHTML(
         ${submissionState === 'error' ? `
           <div class="feedback-error-banner">
             <span class="feedback-error-icon">${AlertCircleIcon}</span>
-            <span class="feedback-error-text">${errorMessage || 'Failed to submit feedback'}</span>
-            <button type="button" class="feedback-retry-button">Retry</button>
+            <span class="feedback-error-text">${errorMessage || 'Something went wrong. Please try again.'}</span>
+            <button type="button" class="feedback-retry-button">${isNetworkError ? 'Retry' : 'Try Again'}</button>
           </div>
         ` : ''}
 

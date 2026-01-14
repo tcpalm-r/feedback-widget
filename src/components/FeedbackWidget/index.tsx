@@ -16,7 +16,7 @@ import {
   getServerSnapshot,
   WIDGET_SIZE,
 } from './utils/positionStore';
-import { submitFeedback, FeedbackMetadata } from '../../lib/supabase';
+import { submitFeedback, FeedbackMetadata, SubmitFeedbackResult } from '../../lib/supabase';
 import { detectUserId, JwtConfig } from './utils/jwt';
 import {
   initConfig,
@@ -98,6 +98,7 @@ export function FeedbackWidget({
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isNetworkError, setIsNetworkError] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedElements, setSelectedElements] = useState<SelectedElementData[]>([]);
   const [selectionWarning, setSelectionWarning] = useState<string | null>(null);
@@ -493,21 +494,25 @@ export function FeedbackWidget({
   }, [effectiveJwtConfig]);
 
   // Form submit handler
-  const handleSubmit = useCallback(async (e: Event) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(async (e?: Event) => {
+    if (e) {
+      e.preventDefault();
+    }
 
     // Validate message is not empty
     if (!feedbackMessage.trim()) {
       setSubmissionState('error');
       setErrorMessage('Please enter a message');
+      setIsNetworkError(false);
       return;
     }
 
     setSubmissionState('loading');
     setErrorMessage('');
+    setIsNetworkError(false);
 
     const metadata = collectMetadata();
-    const result = await submitFeedback({
+    const result: SubmitFeedbackResult = await submitFeedback({
       app_id: effectiveAppId,
       type: feedbackType,
       message: feedbackMessage.trim(),
@@ -529,15 +534,16 @@ export function FeedbackWidget({
       }, 2000);
     } else {
       setSubmissionState('error');
-      setErrorMessage(result.error || 'Failed to submit feedback');
+      setErrorMessage(result.error || 'Something went wrong. Please try again.');
+      setIsNetworkError(result.isNetworkError || false);
     }
   }, [feedbackType, feedbackMessage, effectiveAppId, collectMetadata, selectedElements]);
 
-  // Retry handler for error state
+  // Retry handler for error state - actually retries submission
   const handleRetry = useCallback(() => {
-    setSubmissionState('idle');
-    setErrorMessage('');
-  }, []);
+    // Re-submit the feedback
+    handleSubmit();
+  }, [handleSubmit]);
 
   // Remove an element from selection by index
   const handleRemoveElement = useCallback((index: number) => {
@@ -594,7 +600,7 @@ export function FeedbackWidget({
 
     const formHTML = isExpanded ? `
       <div class="feedback-form-panel">
-        ${getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, selectedElements, isElementListExpanded)}
+        ${getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, selectedElements, isElementListExpanded, isNetworkError)}
       </div>
     ` : '';
 
@@ -750,6 +756,7 @@ export function FeedbackWidget({
     feedbackMessage,
     submissionState,
     errorMessage,
+    isNetworkError,
     isSelectionMode,
     selectedElements,
     isElementListExpanded,
