@@ -7,6 +7,8 @@ Started: Wed Jan 14 12:25:23 PST 2026
 - Environment variables for Supabase: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
 - .env.example is explicitly tracked in git (exception added to .gitignore)
 - Use Next.js `Link` component for internal navigation (ESLint enforces no-html-link-for-pages)
+- FeedbackWidget uses Shadow DOM - all styles must be in styles.ts and injected via getWidgetStyles()
+- FeedbackWidget components go in src/components/FeedbackWidget/ directory
 
 ---
 
@@ -69,4 +71,26 @@ Started: Wed Jan 14 12:25:23 PST 2026
 - **Learnings for future iterations:**
   - Use Next.js Link component for internal navigation to pass ESLint rules
   - Demo page provides good test surface for element selection feature with varied interactive elements
+---
+
+## Wed Jan 14 2026 - STORY-004
+- What was implemented:
+  - Created FeedbackWidget component with Shadow DOM for style isolation
+  - Created styles.ts with brand colors (indigo primary) and widget CSS
+  - Implemented circular button (56px) with MessageSquare icon from Lucide
+  - Added hover tooltip showing "Feedback" text with arrow pointer
+  - Widget is fixed position (default: bottom-right corner)
+  - Supports position prop: bottom-right, bottom-left, top-right, top-left
+  - Added widget to demo page
+- Files changed:
+  - src/components/FeedbackWidget/index.tsx (new)
+  - src/components/FeedbackWidget/styles.ts (new)
+  - src/app/demo/page.tsx (added FeedbackWidget import and usage)
+  - prd.json (marked STORY-004 as passes: true)
+- **Learnings for future iterations:**
+  - Shadow DOM requires using attachShadow({ mode: 'open' }) on a host element
+  - Shadow DOM styles are injected via <style> tag inside the shadow root
+  - SVG icons can be embedded as template strings and injected via innerHTML
+  - 'use client' directive is required for components using hooks like useEffect, useState
+  - Components using Shadow DOM cannot use Lucide React components directly - need raw SVG
 ---

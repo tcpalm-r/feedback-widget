@@ -52,7 +52,7 @@
       "id": "STORY-004",
       "title": "Basic widget shell with Shadow DOM",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "description": "Create the FeedbackWidget component using Shadow DOM for style isolation. The widget should render as a circular button with a MessageSquare icon and show 'Feedback' tooltip on hover. Query the sonance-brand MCP for brand colors.",
       "acceptanceCriteria": [
         "src/components/FeedbackWidget/index.tsx exists",
