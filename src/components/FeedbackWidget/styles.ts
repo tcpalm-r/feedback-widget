@@ -31,6 +31,11 @@ export const getWidgetStyles = (): string => `
     font-family: inherit;
   }
 
+  .feedback-widget-container.draggable {
+    bottom: auto;
+    right: auto;
+  }
+
   .feedback-widget-container.top-right {
     top: 24px;
     bottom: auto;
@@ -56,13 +61,19 @@ export const getWidgetStyles = (): string => `
     border-radius: 50%;
     background-color: ${colors.primary};
     border: none;
-    cursor: pointer;
+    cursor: grab;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 12px ${colors.shadowDark};
     transition: all 0.2s ease-in-out;
     position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .feedback-button.dragging {
+    cursor: grabbing;
   }
 
   .feedback-button:hover {
