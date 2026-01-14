@@ -120,7 +120,7 @@
       "id": "STORY-008",
       "title": "Unit tests for core widget",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "description": "Write unit tests for the core widget functionality using Vitest.",
       "acceptanceCriteria": [
         "tests/unit/widget.test.ts exists",

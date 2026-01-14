@@ -174,3 +174,21 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - SVG icons for loading states need animation defined in CSS with @keyframes
   - Auto-close timers need cleanup on unmount to prevent memory leaks
 ---
+
+## Wed Jan 14 2026 - STORY-008
+- What was implemented:
+  - Created tests/unit/widget.test.ts with comprehensive unit tests using Vitest
+  - Test for widget render: verifies form HTML generation with correct structure
+  - Test for form validation: verifies error state for empty message, required field structure
+  - Test for position persistence: savePosition, loadPosition, clearPosition, constrainToViewport
+  - Test for JWT detection: detectUserId from localStorage and cookies, createJwtConfig
+  - 42 total test cases covering storage utils, JWT detection, and form validation
+- Files changed:
+  - tests/unit/widget.test.ts (new - comprehensive unit tests)
+  - prd.json (marked STORY-008 as passes: true)
+- **Learnings for future iterations:**
+  - Vitest uses jsdom environment - mock localStorage/window/document via Object.defineProperty
+  - Create JWT tokens for testing with base64 encoded header.payload.signature format
+  - FeedbackForm exports HTML generator functions which can be unit tested independently
+  - Storage utils can be tested in isolation without needing the full React component
+---
