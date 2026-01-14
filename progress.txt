@@ -11,6 +11,8 @@ Started: Wed Jan 14 12:25:23 PST 2026
 - FeedbackWidget components go in src/components/FeedbackWidget/ directory
 - Use useSyncExternalStore for external state (avoids ESLint react-hooks rules issues)
 - FeedbackWidget position is managed via external store in utils/positionStore.ts
+- Supabase client is a singleton in src/lib/supabase.ts - use getSupabaseClient() to access
+- JWT detection utility is in utils/jwt.ts - supports configurable cookie/localStorage keys
 
 ---
 
@@ -142,4 +144,33 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - Form state must be managed in parent component and passed to HTML generator
   - Event listeners for form elements inside Shadow DOM must be attached manually via querySelector
   - Custom select dropdown arrow implemented via background-image with data URI encoded SVG
+---
+
+## Wed Jan 14 2026 - STORY-007
+- What was implemented:
+  - Created src/lib/supabase.ts with Supabase client singleton and submitFeedback function
+  - Environment variable validation with console warnings for missing config
+  - Created src/components/FeedbackWidget/utils/jwt.ts for JWT token detection
+  - JWT detection checks both cookies and localStorage for common token keys
+  - Configurable JWT settings (cookieKeys, localStorageKeys, userIdClaim)
+  - Updated FeedbackForm.tsx with submission states: idle, loading, success, error
+  - Success state shows checkmark icon and auto-collapses after 2 seconds
+  - Error state shows error banner with retry button
+  - Loading state shows spinner and disables form inputs
+  - Auto-captures metadata: URL, userAgent, timestamp, userId (from JWT)
+  - Demo page now uses appId: 'demo-app'
+- Files changed:
+  - src/lib/supabase.ts (new - Supabase client and submission)
+  - src/components/FeedbackWidget/utils/jwt.ts (new - JWT detection)
+  - src/components/FeedbackWidget/FeedbackForm.tsx (added submission states)
+  - src/components/FeedbackWidget/index.tsx (integrated Supabase submission)
+  - src/components/FeedbackWidget/styles.ts (added loading, success, error styles)
+  - src/app/demo/page.tsx (added appId prop)
+  - prd.json (marked STORY-007 as passes: true)
+- **Learnings for future iterations:**
+  - Supabase client is created as singleton in src/lib/supabase.ts
+  - JWT tokens are often stored in nested JSON objects in localStorage - need to handle parsing
+  - Base64Url decoding for JWT requires character replacement: - to +, _ to /
+  - SVG icons for loading states need animation defined in CSS with @keyframes
+  - Auto-close timers need cleanup on unmount to prevent memory leaks
 ---

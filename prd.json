@@ -102,7 +102,7 @@
       "id": "STORY-007",
       "title": "Supabase submission integration",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "description": "Connect the feedback form to Supabase for data submission. Include metadata capture and JWT detection for user identification.",
       "acceptanceCriteria": [
         "src/lib/supabase.ts exists with Supabase client setup using env variables",
