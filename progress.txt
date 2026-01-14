@@ -192,3 +192,29 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - FeedbackForm exports HTML generator functions which can be unit tested independently
   - Storage utils can be tested in isolation without needing the full React component
 ---
+
+## Wed Jan 14 2026 - STORY-009
+- What was implemented:
+  - Created SelectionMode.tsx with overlay, toolbar, and styling functions
+  - Added "Select on Screen" button to feedback form with crosshair icon
+  - Selection mode shows darkened overlay covering the page
+  - Cursor changes to crosshair in selection mode
+  - Toolbar at top shows "Click elements to select" with counter (X/5 selected)
+  - Done button to exit selection mode
+  - ESC key handler exits selection mode
+  - Clicking widget button in selection mode exits selection mode
+  - Widget button turns red in selection mode to indicate "exit" action
+  - ESC hint displayed at bottom of screen
+  - Form shows elements badge when elements are selected (prepared for STORY-010/011)
+- Files changed:
+  - src/components/FeedbackWidget/SelectionMode.tsx (new - selection mode overlay)
+  - src/components/FeedbackWidget/FeedbackForm.tsx (added "Select on Screen" button)
+  - src/components/FeedbackWidget/index.tsx (integrated selection mode state and handlers)
+  - src/components/FeedbackWidget/styles.ts (added selection mode styles via import)
+  - prd.json (marked STORY-009 as passes: true)
+- **Learnings for future iterations:**
+  - Selection mode collapses the form and shows overlay - re-expand on exit
+  - Selection mode components (overlay, toolbar) are rendered outside the widget container in Shadow DOM
+  - Disable dragging when in selection mode to prevent accidental moves
+  - setSelectedElements warning is expected until STORY-010/011 implement element selection
+---

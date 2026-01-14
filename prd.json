@@ -136,7 +136,7 @@
       "id": "STORY-009",
       "title": "Selection mode overlay",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "description": "Implement the selection mode UI with darkened overlay and crosshair cursor when user wants to select elements on screen.",
       "acceptanceCriteria": [
         "Form includes 'Select on Screen' button",
