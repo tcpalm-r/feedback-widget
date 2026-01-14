@@ -70,7 +70,7 @@
       "id": "STORY-005",
       "title": "Draggable widget with position persistence",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "description": "Implement drag functionality on the widget button so users can reposition it. Position should persist in localStorage and restore on page load.",
       "acceptanceCriteria": [
         "Widget button can be dragged to any position on screen",

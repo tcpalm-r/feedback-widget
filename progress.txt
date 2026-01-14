@@ -9,6 +9,8 @@ Started: Wed Jan 14 12:25:23 PST 2026
 - Use Next.js `Link` component for internal navigation (ESLint enforces no-html-link-for-pages)
 - FeedbackWidget uses Shadow DOM - all styles must be in styles.ts and injected via getWidgetStyles()
 - FeedbackWidget components go in src/components/FeedbackWidget/ directory
+- Use useSyncExternalStore for external state (avoids ESLint react-hooks rules issues)
+- FeedbackWidget position is managed via external store in utils/positionStore.ts
 
 ---
 
@@ -93,4 +95,29 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - SVG icons can be embedded as template strings and injected via innerHTML
   - 'use client' directive is required for components using hooks like useEffect, useState
   - Components using Shadow DOM cannot use Lucide React components directly - need raw SVG
+---
+
+## Wed Jan 14 2026 - STORY-005
+- What was implemented:
+  - Added drag functionality to FeedbackWidget with mouse events
+  - Created localStorage utilities in src/components/FeedbackWidget/utils/storage.ts
+  - Created external position store in src/components/FeedbackWidget/utils/positionStore.ts
+  - Position persists to localStorage with key 'feedback-widget-position'
+  - Position restored from localStorage on component mount
+  - Widget stays within viewport bounds (cannot be dragged off-screen)
+  - Added grab/grabbing cursor states during drag
+  - Click vs drag detection (5px threshold) to prevent accidental form toggle
+  - Window resize handler keeps widget within bounds
+- Files changed:
+  - src/components/FeedbackWidget/index.tsx (added drag functionality)
+  - src/components/FeedbackWidget/styles.ts (added draggable styles)
+  - src/components/FeedbackWidget/utils/storage.ts (new - localStorage helpers)
+  - src/components/FeedbackWidget/utils/positionStore.ts (new - external store)
+  - prd.json (marked STORY-005 as passes: true)
+- **Learnings for future iterations:**
+  - ESLint react-hooks/set-state-in-effect rule prevents setState in effects - use useSyncExternalStore pattern instead
+  - ESLint react-hooks/refs rule prevents ref access during render - use external stores for initialization
+  - useSyncExternalStore is the proper pattern for external state that needs SSR support
+  - useIsClient() hook pattern: useSyncExternalStore(() => () => {}, () => true, () => false)
+  - Drag-to-click discrimination needs threshold detection (5px) to prevent accidental triggers
 ---
