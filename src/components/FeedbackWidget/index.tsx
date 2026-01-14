@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
 import { getWidgetStyles } from './styles';
 import { constrainToViewport } from './utils/storage';
+import { getFeedbackFormHTML, FeedbackType } from './FeedbackForm';
 import {
   initializePosition,
   setPosition,
@@ -41,6 +42,8 @@ export function FeedbackWidget({
   const shadowRootRef = useRef<ShadowRoot | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<FeedbackType>('general');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const hasDraggedRef = useRef(false);
@@ -137,6 +140,22 @@ export function FeedbackWidget({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
+  // Close form handler
+  const handleClose = useCallback(() => {
+    setIsExpanded(false);
+  }, []);
+
+  // Form submit handler
+  const handleSubmit = useCallback((e: Event) => {
+    e.preventDefault();
+    // For now, just log - will be connected to Supabase in STORY-007
+    console.log('Feedback submitted:', { type: feedbackType, message: feedbackMessage });
+    // Reset form and close
+    setFeedbackMessage('');
+    setFeedbackType('general');
+    setIsExpanded(false);
+  }, [feedbackType, feedbackMessage]);
+
   // Render Shadow DOM content
   useEffect(() => {
     if (!hostRef.current || !isClient) return;
@@ -150,10 +169,17 @@ export function FeedbackWidget({
 
     // Use absolute positioning with draggable state
     const draggingClass = isDragging ? 'dragging' : '';
+    const expandedClass = isExpanded ? 'expanded' : '';
+
+    const formHTML = isExpanded ? `
+      <div class="feedback-form-panel">
+        ${getFeedbackFormHTML(feedbackType, feedbackMessage)}
+      </div>
+    ` : '';
 
     shadowRoot.innerHTML = `
       <style>${getWidgetStyles()}</style>
-      <div class="feedback-widget-container draggable" style="left: ${widgetPosition.x}px; top: ${widgetPosition.y}px;">
+      <div class="feedback-widget-container draggable ${expandedClass}" style="left: ${widgetPosition.x}px; top: ${widgetPosition.y}px;">
         <div class="feedback-button-wrapper">
           <button
             class="feedback-button ${draggingClass}"
@@ -164,6 +190,7 @@ export function FeedbackWidget({
           </button>
           <div class="feedback-tooltip" role="tooltip">Feedback</div>
         </div>
+        ${formHTML}
       </div>
     `;
 
@@ -181,12 +208,50 @@ export function FeedbackWidget({
         }
       };
       button.addEventListener('click', onClick);
-
-      return () => {
-        button.removeEventListener('mousedown', onMouseDown);
-        button.removeEventListener('click', onClick);
-      };
     }
+
+    // Form event listeners (when expanded)
+    if (isExpanded) {
+      const closeButton = shadowRoot.querySelector('.feedback-close-button');
+      const form = shadowRoot.querySelector('.feedback-form-body');
+      const typeSelect = shadowRoot.querySelector('#feedback-type') as HTMLSelectElement;
+      const messageTextarea = shadowRoot.querySelector('#feedback-message') as HTMLTextAreaElement;
+
+      if (closeButton) {
+        closeButton.addEventListener('click', handleClose);
+      }
+
+      if (form) {
+        form.addEventListener('submit', handleSubmit);
+      }
+
+      if (typeSelect) {
+        typeSelect.addEventListener('change', (e) => {
+          setFeedbackType((e.target as HTMLSelectElement).value as FeedbackType);
+        });
+      }
+
+      if (messageTextarea) {
+        messageTextarea.addEventListener('input', (e) => {
+          setFeedbackMessage((e.target as HTMLTextAreaElement).value);
+        });
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      const button = shadowRoot.querySelector('.feedback-button');
+      if (button) {
+        button.removeEventListener('mousedown', handleMouseDown as EventListener);
+        button.removeEventListener('click', () => {});
+      }
+      if (isExpanded) {
+        const closeButton = shadowRoot.querySelector('.feedback-close-button');
+        const form = shadowRoot.querySelector('.feedback-form-body');
+        if (closeButton) closeButton.removeEventListener('click', handleClose);
+        if (form) form.removeEventListener('submit', handleSubmit);
+      }
+    };
   }, [
     position,
     isExpanded,
@@ -194,6 +259,10 @@ export function FeedbackWidget({
     isDragging,
     isClient,
     handleMouseDown,
+    handleClose,
+    handleSubmit,
+    feedbackType,
+    feedbackMessage,
   ]);
 
   return <div ref={hostRef} data-feedback-widget />;

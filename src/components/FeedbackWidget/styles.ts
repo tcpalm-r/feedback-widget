@@ -141,4 +141,186 @@ export const getWidgetStyles = (): string => `
     position: relative;
     display: inline-block;
   }
+
+  /* Form Panel Styles */
+  .feedback-form {
+    background-color: ${colors.background};
+    border-radius: 12px;
+    box-shadow: 0 10px 40px ${colors.shadowDark}, 0 0 0 1px ${colors.border};
+    width: 320px;
+    overflow: hidden;
+    animation: feedbackFormSlideIn 0.2s ease-out;
+  }
+
+  @keyframes feedbackFormSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .feedback-form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid ${colors.border};
+  }
+
+  .feedback-form-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: ${colors.textDark};
+  }
+
+  .feedback-close-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    transition: all 0.15s ease;
+  }
+
+  .feedback-close-button:hover {
+    background-color: #f3f4f6;
+    color: ${colors.textDark};
+  }
+
+  .feedback-close-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px ${colors.primaryLight};
+  }
+
+  .feedback-close-button svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .feedback-form-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .feedback-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .feedback-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: ${colors.textDark};
+  }
+
+  .feedback-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid ${colors.border};
+    border-radius: 8px;
+    font-size: 14px;
+    color: ${colors.textDark};
+    background-color: ${colors.background};
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+
+  .feedback-select:hover {
+    border-color: #9ca3af;
+  }
+
+  .feedback-select:focus {
+    outline: none;
+    border-color: ${colors.primary};
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  .feedback-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid ${colors.border};
+    border-radius: 8px;
+    font-size: 14px;
+    color: ${colors.textDark};
+    background-color: ${colors.background};
+    resize: vertical;
+    min-height: 100px;
+    font-family: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .feedback-textarea::placeholder {
+    color: #9ca3af;
+  }
+
+  .feedback-textarea:hover {
+    border-color: #9ca3af;
+  }
+
+  .feedback-textarea:focus {
+    outline: none;
+    border-color: ${colors.primary};
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  .feedback-submit-button {
+    width: 100%;
+    padding: 12px 16px;
+    background-color: ${colors.primary};
+    color: ${colors.text};
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .feedback-submit-button:hover {
+    background-color: ${colors.primaryHover};
+  }
+
+  .feedback-submit-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+  }
+
+  .feedback-submit-button:active {
+    transform: scale(0.98);
+  }
+
+  /* Form panel positioning */
+  .feedback-form-panel {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    right: 0;
+  }
+
+  /* Hide button wrapper when expanded */
+  .feedback-widget-container.expanded .feedback-button-wrapper {
+    display: none;
+  }
 `;
