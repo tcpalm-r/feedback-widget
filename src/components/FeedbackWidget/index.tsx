@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
 import { getWidgetStyles } from './styles';
 import { constrainToViewport } from './utils/storage';
-import { getFeedbackFormHTML, FeedbackType } from './FeedbackForm';
+import { getFeedbackFormHTML, FeedbackType, SubmissionState } from './FeedbackForm';
 import {
   initializePosition,
   setPosition,
@@ -14,6 +14,8 @@ import {
   getServerSnapshot,
   WIDGET_SIZE,
 } from './utils/positionStore';
+import { submitFeedback, FeedbackMetadata } from '../../lib/supabase';
+import { detectUserId, JwtConfig } from './utils/jwt';
 
 // MessageSquare icon SVG path (from Lucide)
 const MessageSquareIcon = `
@@ -24,6 +26,8 @@ const MessageSquareIcon = `
 
 export interface FeedbackWidgetProps {
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  appId?: string;
+  jwtConfig?: JwtConfig;
 }
 
 // Hook to detect client-side mount
@@ -37,6 +41,8 @@ function useIsClient() {
 
 export function FeedbackWidget({
   position = 'bottom-right',
+  appId = 'default',
+  jwtConfig,
 }: FeedbackWidgetProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const shadowRootRef = useRef<ShadowRoot | null>(null);
@@ -44,9 +50,12 @@ export function FeedbackWidget({
   const [isDragging, setIsDragging] = useState(false);
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('general');
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const hasDraggedRef = useRef(false);
+  const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isClient = useIsClient();
 
@@ -140,21 +149,80 @@ export function FeedbackWidget({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Close form handler
-  const handleClose = useCallback(() => {
-    setIsExpanded(false);
+  // Clear auto-close timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current);
+      }
+    };
   }, []);
 
-  // Form submit handler
-  const handleSubmit = useCallback((e: Event) => {
-    e.preventDefault();
-    // For now, just log - will be connected to Supabase in STORY-007
-    console.log('Feedback submitted:', { type: feedbackType, message: feedbackMessage });
-    // Reset form and close
-    setFeedbackMessage('');
-    setFeedbackType('general');
+  // Close form handler
+  const handleClose = useCallback(() => {
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
+    }
     setIsExpanded(false);
-  }, [feedbackType, feedbackMessage]);
+    setSubmissionState('idle');
+    setErrorMessage('');
+  }, []);
+
+  // Collect metadata
+  const collectMetadata = useCallback((): FeedbackMetadata => {
+    const userId = detectUserId(jwtConfig);
+    return {
+      url: typeof window !== 'undefined' ? window.location.href : '',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      timestamp: new Date().toISOString(),
+      ...(userId && { userId }),
+    };
+  }, [jwtConfig]);
+
+  // Form submit handler
+  const handleSubmit = useCallback(async (e: Event) => {
+    e.preventDefault();
+
+    // Validate message is not empty
+    if (!feedbackMessage.trim()) {
+      setSubmissionState('error');
+      setErrorMessage('Please enter a message');
+      return;
+    }
+
+    setSubmissionState('loading');
+    setErrorMessage('');
+
+    const metadata = collectMetadata();
+    const result = await submitFeedback({
+      app_id: appId,
+      type: feedbackType,
+      message: feedbackMessage.trim(),
+      metadata,
+    });
+
+    if (result.success) {
+      setSubmissionState('success');
+      // Reset form fields
+      setFeedbackMessage('');
+      setFeedbackType('general');
+      // Auto-collapse after 2 seconds
+      autoCloseTimerRef.current = setTimeout(() => {
+        setIsExpanded(false);
+        setSubmissionState('idle');
+      }, 2000);
+    } else {
+      setSubmissionState('error');
+      setErrorMessage(result.error || 'Failed to submit feedback');
+    }
+  }, [feedbackType, feedbackMessage, appId, collectMetadata]);
+
+  // Retry handler for error state
+  const handleRetry = useCallback(() => {
+    setSubmissionState('idle');
+    setErrorMessage('');
+  }, []);
 
   // Render Shadow DOM content
   useEffect(() => {
@@ -173,7 +241,7 @@ export function FeedbackWidget({
 
     const formHTML = isExpanded ? `
       <div class="feedback-form-panel">
-        ${getFeedbackFormHTML(feedbackType, feedbackMessage)}
+        ${getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage)}
       </div>
     ` : '';
 
@@ -216,6 +284,7 @@ export function FeedbackWidget({
       const form = shadowRoot.querySelector('.feedback-form-body');
       const typeSelect = shadowRoot.querySelector('#feedback-type') as HTMLSelectElement;
       const messageTextarea = shadowRoot.querySelector('#feedback-message') as HTMLTextAreaElement;
+      const retryButton = shadowRoot.querySelector('.feedback-retry-button');
 
       if (closeButton) {
         closeButton.addEventListener('click', handleClose);
@@ -236,6 +305,10 @@ export function FeedbackWidget({
           setFeedbackMessage((e.target as HTMLTextAreaElement).value);
         });
       }
+
+      if (retryButton) {
+        retryButton.addEventListener('click', handleRetry);
+      }
     }
 
     // Cleanup function
@@ -248,8 +321,10 @@ export function FeedbackWidget({
       if (isExpanded) {
         const closeButton = shadowRoot.querySelector('.feedback-close-button');
         const form = shadowRoot.querySelector('.feedback-form-body');
+        const retryButton = shadowRoot.querySelector('.feedback-retry-button');
         if (closeButton) closeButton.removeEventListener('click', handleClose);
         if (form) form.removeEventListener('submit', handleSubmit);
+        if (retryButton) retryButton.removeEventListener('click', handleRetry);
       }
     };
   }, [
@@ -261,8 +336,11 @@ export function FeedbackWidget({
     handleMouseDown,
     handleClose,
     handleSubmit,
+    handleRetry,
     feedbackType,
     feedbackMessage,
+    submissionState,
+    errorMessage,
   ]);
 
   return <div ref={hostRef} data-feedback-widget />;

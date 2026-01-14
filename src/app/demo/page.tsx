@@ -364,7 +364,7 @@ export default function DemoPage() {
       </footer>
 
       {/* Feedback Widget */}
-      <FeedbackWidget />
+      <FeedbackWidget appId="demo-app" />
     </div>
   );
 }

@@ -323,4 +323,148 @@ export const getWidgetStyles = (): string => `
   .feedback-widget-container.expanded .feedback-button-wrapper {
     display: none;
   }
+
+  /* Loading spinner animation */
+  @keyframes feedbackSpinner {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .feedback-spinner {
+    animation: feedbackSpinner 1s linear infinite;
+  }
+
+  .feedback-submit-button svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  .feedback-submit-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .feedback-submit-button:disabled:hover {
+    background-color: ${colors.primary};
+    transform: none;
+  }
+
+  /* Success state */
+  .feedback-success-body {
+    padding: 32px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .feedback-success-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: #10b981;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .feedback-success-icon svg {
+    width: 28px;
+    height: 28px;
+    fill: none;
+    stroke: white;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .feedback-success-message {
+    margin: 0;
+    font-size: 14px;
+    color: #374151;
+    line-height: 1.5;
+  }
+
+  /* Error state */
+  .feedback-error-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    margin-bottom: 4px;
+  }
+
+  .feedback-error-icon {
+    flex-shrink: 0;
+    display: flex;
+  }
+
+  .feedback-error-icon svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: #dc2626;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .feedback-error-text {
+    flex: 1;
+    font-size: 13px;
+    color: #991b1b;
+    line-height: 1.4;
+  }
+
+  .feedback-retry-button {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    background-color: transparent;
+    color: #dc2626;
+    border: 1px solid #dc2626;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .feedback-retry-button:hover {
+    background-color: #dc2626;
+    color: white;
+  }
+
+  .feedback-retry-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #fecaca;
+  }
+
+  /* Disabled states for form elements */
+  .feedback-select:disabled,
+  .feedback-textarea:disabled {
+    background-color: #f9fafb;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .feedback-close-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
 `;
