@@ -5,6 +5,7 @@ import { getWidgetStyles } from './styles';
 import { constrainToViewport } from './utils/storage';
 import { getFeedbackFormHTML, FeedbackType, SubmissionState } from './FeedbackForm';
 import { getSelectionModeOverlayHTML } from './SelectionMode';
+import { isInteractiveElement, findInteractiveParent } from './utils/elements';
 import {
   initializePosition,
   setPosition,
@@ -59,6 +60,8 @@ export function FeedbackWidget({
   const dragStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const hasDraggedRef = useRef(false);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const highlightOverlayRef = useRef<HTMLDivElement | null>(null);
+  const hoveredElementRef = useRef<HTMLElement | null>(null);
 
   const isClient = useIsClient();
 
@@ -152,11 +155,15 @@ export function FeedbackWidget({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Clear auto-close timer on unmount
+  // Clear auto-close timer and highlight overlay on unmount
   useEffect(() => {
     return () => {
       if (autoCloseTimerRef.current) {
         clearTimeout(autoCloseTimerRef.current);
+      }
+      if (highlightOverlayRef.current) {
+        highlightOverlayRef.current.remove();
+        highlightOverlayRef.current = null;
       }
     };
   }, []);
@@ -173,6 +180,91 @@ export function FeedbackWidget({
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
+  }, [isSelectionMode]);
+
+  // Hover highlighting in selection mode
+  useEffect(() => {
+    if (!isSelectionMode) {
+      // Clean up highlight overlay when exiting selection mode
+      if (highlightOverlayRef.current) {
+        highlightOverlayRef.current.remove();
+        highlightOverlayRef.current = null;
+      }
+      hoveredElementRef.current = null;
+      return;
+    }
+
+    // Create highlight overlay element if it doesn't exist
+    if (!highlightOverlayRef.current) {
+      const overlay = document.createElement('div');
+      overlay.id = 'feedback-highlight-overlay';
+      overlay.style.cssText = `
+        position: fixed;
+        pointer-events: none;
+        z-index: 999997;
+        border: 2px solid #6366f1;
+        background-color: rgba(99, 102, 241, 0.1);
+        border-radius: 4px;
+        transition: all 0.1s ease-out;
+        display: none;
+      `;
+      document.body.appendChild(overlay);
+      highlightOverlayRef.current = overlay;
+    }
+
+    const overlay = highlightOverlayRef.current;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Get element under cursor (ignoring the overlay and widget)
+      overlay.style.display = 'none';
+      const elementUnderCursor = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      overlay.style.display = hoveredElementRef.current ? 'block' : 'none';
+
+      if (!elementUnderCursor) {
+        hoveredElementRef.current = null;
+        overlay.style.display = 'none';
+        return;
+      }
+
+      // Skip if inside feedback widget
+      if (elementUnderCursor.closest('[data-feedback-widget]')) {
+        hoveredElementRef.current = null;
+        overlay.style.display = 'none';
+        return;
+      }
+
+      // Skip if it's part of the selection mode overlay (inside shadow DOM)
+      if (elementUnderCursor.closest('#feedback-highlight-overlay')) {
+        return;
+      }
+
+      // Find interactive element - either the element itself or its closest interactive parent
+      let interactiveEl: HTMLElement | null = null;
+      if (isInteractiveElement(elementUnderCursor)) {
+        interactiveEl = elementUnderCursor;
+      } else {
+        interactiveEl = findInteractiveParent(elementUnderCursor);
+      }
+
+      if (interactiveEl) {
+        hoveredElementRef.current = interactiveEl;
+        const rect = interactiveEl.getBoundingClientRect();
+        overlay.style.left = `${rect.left - 2}px`;
+        overlay.style.top = `${rect.top - 2}px`;
+        overlay.style.width = `${rect.width + 4}px`;
+        overlay.style.height = `${rect.height + 4}px`;
+        overlay.style.display = 'block';
+      } else {
+        hoveredElementRef.current = null;
+        overlay.style.display = 'none';
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+    };
   }, [isSelectionMode]);
 
   // Close form handler
