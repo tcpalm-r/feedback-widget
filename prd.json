@@ -1,0 +1,266 @@
+{
+  "branchName": "main",
+  "stories": [
+    {
+      "id": "STORY-001",
+      "title": "Project setup and dependencies",
+      "priority": 1,
+      "passes": false,
+      "description": "Install and configure all required dependencies for the feedback widget project including Supabase client, Lucide React icons, Vitest for unit testing, and Playwright for E2E testing.",
+      "acceptanceCriteria": [
+        "Supabase client (@supabase/supabase-js) is installed",
+        "Lucide React (lucide-react) is installed",
+        "Vitest is installed and configured with npm run test script",
+        "Playwright is installed and configured with npm run test:e2e script",
+        ".env.example file exists with NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY placeholders",
+        "npm run test runs without errors (even if no tests exist yet)",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-002",
+      "title": "Supabase schema migration",
+      "priority": 2,
+      "passes": false,
+      "description": "Create SQL migration file for the feedback table with proper schema and Row Level Security policies.",
+      "acceptanceCriteria": [
+        "supabase/migrations/ directory exists",
+        "Migration file 001_feedback_table.sql exists",
+        "Schema includes: id (uuid primary key), app_id (text not null), type (text), message (text not null), elements (jsonb nullable), metadata (jsonb), created_at (timestamptz)",
+        "RLS policy allows public INSERT",
+        "RLS policy allows authenticated SELECT",
+        "SQL syntax is valid"
+      ]
+    },
+    {
+      "id": "STORY-003",
+      "title": "Demo page with sample UI",
+      "priority": 3,
+      "passes": false,
+      "description": "Create a demo page at /demo with various interactive elements to test the element selection feature of the feedback widget.",
+      "acceptanceCriteria": [
+        "src/app/demo/page.tsx exists",
+        "Page includes buttons, links, and form inputs",
+        "Page includes card-like components",
+        "Page includes navigation elements",
+        "Page is styled with Tailwind CSS",
+        "Page renders without errors at http://localhost:3000/demo",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-004",
+      "title": "Basic widget shell with Shadow DOM",
+      "priority": 4,
+      "passes": false,
+      "description": "Create the FeedbackWidget component using Shadow DOM for style isolation. The widget should render as a circular button with a MessageSquare icon and show 'Feedback' tooltip on hover. Query the sonance-brand MCP for brand colors.",
+      "acceptanceCriteria": [
+        "src/components/FeedbackWidget/index.tsx exists",
+        "Component uses Shadow DOM for style isolation",
+        "Collapsed state shows circular button with MessageSquare icon from Lucide",
+        "Tooltip shows 'Feedback' text on hover",
+        "Widget is fixed position (default: bottom-right corner)",
+        "Styles are defined in src/components/FeedbackWidget/styles.ts",
+        "Colors are sourced from sonance-brand MCP",
+        "Widget renders on demo page without CSS conflicts",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-005",
+      "title": "Draggable widget with position persistence",
+      "priority": 5,
+      "passes": false,
+      "description": "Implement drag functionality on the widget button so users can reposition it. Position should persist in localStorage and restore on page load.",
+      "acceptanceCriteria": [
+        "Widget button can be dragged to any position on screen",
+        "Position is saved to localStorage with key 'feedback-widget-position'",
+        "Position is restored from localStorage on component mount",
+        "Widget stays within viewport bounds (cannot be dragged off-screen)",
+        "src/components/FeedbackWidget/utils/storage.ts contains localStorage helpers",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-006",
+      "title": "Expandable feedback form",
+      "priority": 6,
+      "passes": false,
+      "description": "Implement the expanded form state with feedback type dropdown, message textarea, submit button, and close button.",
+      "acceptanceCriteria": [
+        "Clicking widget button expands to show form panel",
+        "Form includes type dropdown with options: Bug, Feature, General",
+        "Form includes message textarea",
+        "Form includes Submit button",
+        "Form includes Close button (X) to collapse back to button",
+        "src/components/FeedbackWidget/FeedbackForm.tsx exists",
+        "Form is styled within Shadow DOM",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-007",
+      "title": "Supabase submission integration",
+      "priority": 7,
+      "passes": false,
+      "description": "Connect the feedback form to Supabase for data submission. Include metadata capture and JWT detection for user identification.",
+      "acceptanceCriteria": [
+        "src/lib/supabase.ts exists with Supabase client setup using env variables",
+        "Submit button sends feedback to Supabase feedback table",
+        "Metadata is auto-captured: URL (window.location.href), userAgent, timestamp",
+        "src/components/FeedbackWidget/utils/jwt.ts detects userId from cookies and localStorage",
+        "JWT detection is configurable (which keys to check)",
+        "Loading state shows during submission",
+        "Success state shows after submission with auto-collapse after 2 seconds",
+        "Error state shows on failure with error message",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-008",
+      "title": "Unit tests for core widget",
+      "priority": 8,
+      "passes": false,
+      "description": "Write unit tests for the core widget functionality using Vitest.",
+      "acceptanceCriteria": [
+        "tests/unit/widget.test.ts exists",
+        "Test for widget render",
+        "Test for form validation (message required)",
+        "Test for position persistence logic (storage utils)",
+        "Test for JWT detection utility",
+        "All tests pass with npm run test",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-009",
+      "title": "Selection mode overlay",
+      "priority": 9,
+      "passes": false,
+      "description": "Implement the selection mode UI with darkened overlay and crosshair cursor when user wants to select elements on screen.",
+      "acceptanceCriteria": [
+        "Form includes 'Select on Screen' button",
+        "Clicking button activates selection mode",
+        "Selection mode shows darkened overlay covering the page",
+        "Cursor changes to crosshair in selection mode",
+        "ESC key exits selection mode",
+        "Clicking the widget button exits selection mode",
+        "'Done' button appears to exit selection mode",
+        "src/components/FeedbackWidget/SelectionMode.tsx exists",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-010",
+      "title": "Interactive element highlighting",
+      "priority": 10,
+      "passes": false,
+      "description": "In selection mode, detect and highlight interactive elements (buttons, links, inputs, elements with roles or click handlers) on hover.",
+      "acceptanceCriteria": [
+        "Interactive elements are detected: buttons, links, inputs, [role], [onclick], elements with tabindex",
+        "Hovering over interactive elements shows highlight outline",
+        "Non-interactive elements do not highlight",
+        "src/components/FeedbackWidget/utils/elements.ts contains element detection logic",
+        "Highlighting is visually distinct (e.g., colored outline)",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-011",
+      "title": "Multi-element selection with limit",
+      "priority": 11,
+      "passes": false,
+      "description": "Allow users to click to select/deselect multiple elements (up to 5) and capture rich data about each selected element.",
+      "acceptanceCriteria": [
+        "Clicking an interactive element selects it",
+        "Clicking a selected element deselects it",
+        "Selected elements show numbered badge overlay (1, 2, 3...)",
+        "Counter shows 'X/5 selected' during selection mode",
+        "Maximum 5 elements can be selected (additional clicks show warning)",
+        "Rich data captured for each element: CSS selector, innerText (truncated), tagName, className, bounding box coordinates",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-012",
+      "title": "Selected elements UI in form",
+      "priority": 12,
+      "passes": false,
+      "description": "Display selected elements in the feedback form as an expandable list with remove functionality.",
+      "acceptanceCriteria": [
+        "src/components/FeedbackWidget/ElementList.tsx exists",
+        "When collapsed: shows 'X elements selected' badge",
+        "Clicking badge expands to show list of elements",
+        "Each element shows preview (tagName, truncated text)",
+        "Each element has remove button",
+        "'Clear all' option available",
+        "Elements data is included in Supabase submission",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-013",
+      "title": "E2E tests for element selection flow",
+      "priority": 13,
+      "passes": false,
+      "description": "Write Playwright E2E tests covering the full element selection and feedback submission flow.",
+      "acceptanceCriteria": [
+        "tests/e2e/feedback-flow.spec.ts exists",
+        "Test: widget renders on demo page",
+        "Test: form opens and closes",
+        "Test: enter selection mode and select elements",
+        "Test: remove element from selection",
+        "Test: submit feedback with selected elements",
+        "All E2E tests pass with npm run test:e2e",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-014",
+      "title": "Widget configuration API",
+      "priority": 14,
+      "passes": false,
+      "description": "Implement FeedbackWidget.init() configuration API for host applications to customize the widget.",
+      "acceptanceCriteria": [
+        "FeedbackWidget.init() accepts configuration object",
+        "appId is required (throws error if missing)",
+        "position is optional (default: bottom-right), accepts: bottom-right, bottom-left, top-right, top-left",
+        "jwtConfig is optional to override JWT detection settings",
+        "Invalid config shows clear error message",
+        "Demo page uses init() with appId: 'demo-app'",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-015",
+      "title": "Error handling and edge cases",
+      "priority": 15,
+      "passes": false,
+      "description": "Add robust error handling for Supabase connection issues, missing configuration, and form validation.",
+      "acceptanceCriteria": [
+        "Supabase connection errors show user-friendly message",
+        "Missing env variables show clear error in console",
+        "Form validates message field is not empty before submission",
+        "Empty message shows validation error",
+        "Network errors offer retry option",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-016",
+      "title": "Documentation and usage guide",
+      "priority": 16,
+      "passes": false,
+      "description": "Create comprehensive README with installation instructions, configuration options, and Supabase setup guide.",
+      "acceptanceCriteria": [
+        "README.md exists with project overview",
+        "Installation instructions (git clone, npm install)",
+        "Environment setup instructions (.env.local)",
+        "Supabase setup guide (how to run migrations)",
+        "Configuration options documented (appId, position, jwtConfig)",
+        "Example integration code snippet",
+        "npm run build passes"
+      ]
+    }
+  ]
+}
