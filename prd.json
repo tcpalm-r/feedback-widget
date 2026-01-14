@@ -85,7 +85,7 @@
       "id": "STORY-006",
       "title": "Expandable feedback form",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "description": "Implement the expanded form state with feedback type dropdown, message textarea, submit button, and close button.",
       "acceptanceCriteria": [
         "Clicking widget button expands to show form panel",

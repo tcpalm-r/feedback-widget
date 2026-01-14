@@ -121,3 +121,25 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - useIsClient() hook pattern: useSyncExternalStore(() => () => {}, () => true, () => false)
   - Drag-to-click discrimination needs threshold detection (5px) to prevent accidental triggers
 ---
+
+## Wed Jan 14 2026 - STORY-006
+- What was implemented:
+  - Created FeedbackForm.tsx with type dropdown (Bug, Feature, General), message textarea, submit and close buttons
+  - Form exports HTML-generating functions since widget uses Shadow DOM
+  - Added comprehensive form styles to styles.ts (input fields, buttons, labels, animations)
+  - Integrated form into FeedbackWidget index.tsx with expand/collapse states
+  - Close button (X) collapses form back to button state
+  - Form has slide-in animation when opening
+  - Type selection and message input are tracked in React state
+  - Submit handler logs to console (Supabase connection deferred to STORY-007)
+- Files changed:
+  - src/components/FeedbackWidget/FeedbackForm.tsx (new)
+  - src/components/FeedbackWidget/index.tsx (added form integration)
+  - src/components/FeedbackWidget/styles.ts (added form panel styles)
+  - prd.json (marked STORY-006 as passes: true)
+- **Learnings for future iterations:**
+  - Shadow DOM components need HTML-as-strings pattern - cannot use React JSX directly
+  - Form state must be managed in parent component and passed to HTML generator
+  - Event listeners for form elements inside Shadow DOM must be attached manually via querySelector
+  - Custom select dropdown arrow implemented via background-image with data URI encoded SVG
+---
