@@ -1,6 +1,7 @@
 // FeedbackWidget Styles
 // Colors sourced from brand guidelines (sonance-brand)
 import { getSelectionModeStyles } from './SelectionMode';
+import { getElementListStyles } from './ElementList';
 
 export const colors = {
   primary: '#6366f1', // Indigo - main brand color
@@ -470,18 +471,7 @@ export const getWidgetStyles = (): string => `
     opacity: 0.5;
   }
 
-  /* Selected elements badge */
-  .feedback-elements-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 6px 12px;
-    background-color: #eef2ff;
-    color: #4f46e5;
-    border: 1px solid #c7d2fe;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 500;
-  }
+  ${getElementListStyles()}
 
   ${getSelectionModeStyles()}
 `;

@@ -57,6 +57,7 @@ export function FeedbackWidget({
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedElements, setSelectedElements] = useState<SelectedElementData[]>([]);
   const [selectionWarning, setSelectionWarning] = useState<string | null>(null);
+  const [isElementListExpanded, setIsElementListExpanded] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const hasDraggedRef = useRef(false);
@@ -466,6 +467,7 @@ export function FeedbackWidget({
       app_id: appId,
       type: feedbackType,
       message: feedbackMessage.trim(),
+      elements: selectedElements.length > 0 ? selectedElements : undefined,
       metadata,
     });
 
@@ -474,6 +476,8 @@ export function FeedbackWidget({
       // Reset form fields
       setFeedbackMessage('');
       setFeedbackType('general');
+      setSelectedElements([]);
+      setIsElementListExpanded(false);
       // Auto-collapse after 2 seconds
       autoCloseTimerRef.current = setTimeout(() => {
         setIsExpanded(false);
@@ -483,12 +487,32 @@ export function FeedbackWidget({
       setSubmissionState('error');
       setErrorMessage(result.error || 'Failed to submit feedback');
     }
-  }, [feedbackType, feedbackMessage, appId, collectMetadata]);
+  }, [feedbackType, feedbackMessage, appId, collectMetadata, selectedElements]);
 
   // Retry handler for error state
   const handleRetry = useCallback(() => {
     setSubmissionState('idle');
     setErrorMessage('');
+  }, []);
+
+  // Remove an element from selection by index
+  const handleRemoveElement = useCallback((index: number) => {
+    setSelectedElements(prev => {
+      const newElements = prev.filter((_, i) => i !== index);
+      // Re-number remaining elements
+      return newElements.map((el, idx) => ({ ...el, id: idx + 1 }));
+    });
+  }, []);
+
+  // Clear all selected elements
+  const handleClearAllElements = useCallback(() => {
+    setSelectedElements([]);
+    setIsElementListExpanded(false);
+  }, []);
+
+  // Toggle element list expansion
+  const handleToggleElementList = useCallback(() => {
+    setIsElementListExpanded(prev => !prev);
   }, []);
 
   // Enter selection mode handler
@@ -526,7 +550,7 @@ export function FeedbackWidget({
 
     const formHTML = isExpanded ? `
       <div class="feedback-form-panel">
-        ${getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, selectedElements.length)}
+        ${getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, selectedElements, isElementListExpanded)}
       </div>
     ` : '';
 
@@ -619,6 +643,26 @@ export function FeedbackWidget({
       if (selectOnScreenButton) {
         selectOnScreenButton.addEventListener('click', handleEnterSelectionMode);
       }
+
+      // Element list event listeners
+      const elementListBadge = shadowRoot.querySelector('.element-list-badge');
+      const clearAllButton = shadowRoot.querySelector('.element-list-clear-all');
+      const removeButtons = shadowRoot.querySelectorAll('.element-item-remove');
+
+      if (elementListBadge) {
+        elementListBadge.addEventListener('click', handleToggleElementList);
+      }
+
+      if (clearAllButton) {
+        clearAllButton.addEventListener('click', handleClearAllElements);
+      }
+
+      removeButtons.forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt((e.currentTarget as HTMLElement).getAttribute('data-remove-index') || '0', 10);
+          handleRemoveElement(index);
+        });
+      });
     }
 
     // Cleanup function
@@ -655,12 +699,16 @@ export function FeedbackWidget({
     handleRetry,
     handleEnterSelectionMode,
     handleExitSelectionMode,
+    handleToggleElementList,
+    handleClearAllElements,
+    handleRemoveElement,
     feedbackType,
     feedbackMessage,
     submissionState,
     errorMessage,
     isSelectionMode,
-    selectedElements.length,
+    selectedElements,
+    isElementListExpanded,
     selectionWarning,
   ]);
 
