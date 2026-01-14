@@ -44,7 +44,13 @@ export function getSelectOnScreenButtonHTML(disabled: boolean = false): string {
  * Generate the selection mode overlay HTML
  * This overlay covers the entire page with a darkened effect
  */
-export function getSelectionModeOverlayHTML(selectedCount: number = 0): string {
+export function getSelectionModeOverlayHTML(selectedCount: number = 0, warning: string | null = null): string {
+  const warningHTML = warning ? `
+    <div class="selection-mode-warning">
+      ${warning}
+    </div>
+  ` : '';
+
   return `
     <div class="selection-mode-overlay">
       <div class="selection-mode-toolbar">
@@ -60,6 +66,7 @@ export function getSelectionModeOverlayHTML(selectedCount: number = 0): string {
           </button>
         </div>
       </div>
+      ${warningHTML}
       <div class="selection-mode-hint">
         Press <kbd>ESC</kbd> to exit selection mode
       </div>
@@ -279,6 +286,34 @@ export function getSelectionModeStyles(): string {
 
     .feedback-widget-container.selection-mode .feedback-button:hover {
       background-color: #dc2626;
+    }
+
+    /* Warning message */
+    .selection-mode-warning {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #fef3c7;
+      color: #92400e;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      animation: warningSlideIn 0.2s ease-out;
+      z-index: 999999;
+    }
+
+    @keyframes warningSlideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
     }
   `;
 }

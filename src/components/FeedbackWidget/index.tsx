@@ -5,7 +5,7 @@ import { getWidgetStyles } from './styles';
 import { constrainToViewport } from './utils/storage';
 import { getFeedbackFormHTML, FeedbackType, SubmissionState } from './FeedbackForm';
 import { getSelectionModeOverlayHTML } from './SelectionMode';
-import { isInteractiveElement, findInteractiveParent } from './utils/elements';
+import { isInteractiveElement, findInteractiveParent, createSelectedElementData, SelectedElementData } from './utils/elements';
 import {
   initializePosition,
   setPosition,
@@ -55,13 +55,18 @@ export function FeedbackWidget({
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedElements, setSelectedElements] = useState<unknown[]>([]);
+  const [selectedElements, setSelectedElements] = useState<SelectedElementData[]>([]);
+  const [selectionWarning, setSelectionWarning] = useState<string | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const hasDraggedRef = useRef(false);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
   const highlightOverlayRef = useRef<HTMLDivElement | null>(null);
   const hoveredElementRef = useRef<HTMLElement | null>(null);
+  const selectionBadgesRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const MAX_SELECTED_ELEMENTS = 5;
 
   const isClient = useIsClient();
 
@@ -155,16 +160,23 @@ export function FeedbackWidget({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  // Clear auto-close timer and highlight overlay on unmount
+  // Clear auto-close timer, warning timeout, highlight overlay, and selection badges on unmount
   useEffect(() => {
+    const badgesMap = selectionBadgesRef.current;
     return () => {
       if (autoCloseTimerRef.current) {
         clearTimeout(autoCloseTimerRef.current);
+      }
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
       }
       if (highlightOverlayRef.current) {
         highlightOverlayRef.current.remove();
         highlightOverlayRef.current = null;
       }
+      // Clean up all selection badges
+      badgesMap.forEach(badge => badge.remove());
+      badgesMap.clear();
     };
   }, []);
 
@@ -182,7 +194,60 @@ export function FeedbackWidget({
     }
   }, [isSelectionMode]);
 
-  // Hover highlighting in selection mode
+  // Helper to create a numbered badge for a selected element
+  const createSelectionBadge = useCallback((element: HTMLElement, number: number): HTMLDivElement => {
+    const badge = document.createElement('div');
+    badge.className = 'feedback-selection-badge';
+    badge.setAttribute('data-selection-badge', String(number));
+    badge.textContent = String(number);
+    badge.style.cssText = `
+      position: fixed;
+      z-index: 999998;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background-color: #6366f1;
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+    const rect = element.getBoundingClientRect();
+    badge.style.left = `${rect.left - 8}px`;
+    badge.style.top = `${rect.top - 8}px`;
+    document.body.appendChild(badge);
+    return badge;
+  }, []);
+
+  // Helper to update all badge positions (for scroll/resize)
+  const updateBadgePositions = useCallback(() => {
+    selectionBadgesRef.current.forEach((badge, selector) => {
+      const element = document.querySelector(selector) as HTMLElement | null;
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        badge.style.left = `${rect.left - 8}px`;
+        badge.style.top = `${rect.top - 8}px`;
+      }
+    });
+  }, []);
+
+  // Helper to show a warning message
+  const showWarning = useCallback((message: string) => {
+    setSelectionWarning(message);
+    if (warningTimeoutRef.current) {
+      clearTimeout(warningTimeoutRef.current);
+    }
+    warningTimeoutRef.current = setTimeout(() => {
+      setSelectionWarning(null);
+    }, 2000);
+  }, []);
+
+  // Hover highlighting and click selection in selection mode
   useEffect(() => {
     if (!isSelectionMode) {
       // Clean up highlight overlay when exiting selection mode
@@ -191,6 +256,7 @@ export function FeedbackWidget({
         highlightOverlayRef.current = null;
       }
       hoveredElementRef.current = null;
+      // Note: We keep the badges when exiting selection mode so they're visible
       return;
     }
 
@@ -238,6 +304,11 @@ export function FeedbackWidget({
         return;
       }
 
+      // Skip selection badges
+      if (elementUnderCursor.classList.contains('feedback-selection-badge')) {
+        return;
+      }
+
       // Find interactive element - either the element itself or its closest interactive parent
       let interactiveEl: HTMLElement | null = null;
       if (isInteractiveElement(elementUnderCursor)) {
@@ -260,12 +331,99 @@ export function FeedbackWidget({
       }
     };
 
+    const handleClick = (e: MouseEvent) => {
+      // Hide overlay to get element under cursor
+      overlay.style.display = 'none';
+      const elementUnderCursor = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+      overlay.style.display = hoveredElementRef.current ? 'block' : 'none';
+
+      if (!elementUnderCursor) return;
+
+      // Skip if inside feedback widget
+      if (elementUnderCursor.closest('[data-feedback-widget]')) {
+        return;
+      }
+
+      // Skip selection badges
+      if (elementUnderCursor.classList.contains('feedback-selection-badge')) {
+        return;
+      }
+
+      // Find the interactive element
+      let interactiveEl: HTMLElement | null = null;
+      if (isInteractiveElement(elementUnderCursor)) {
+        interactiveEl = elementUnderCursor;
+      } else {
+        interactiveEl = findInteractiveParent(elementUnderCursor);
+      }
+
+      if (!interactiveEl) return;
+
+      // Prevent default action (e.g., navigating a link)
+      e.preventDefault();
+      e.stopPropagation();
+
+      const selector = interactiveEl.id
+        ? `#${CSS.escape(interactiveEl.id)}`
+        : createSelectedElementData(interactiveEl, 0).selector;
+
+      // Check if already selected (using selector as key)
+      const existingIndex = selectedElements.findIndex(el => el.selector === selector);
+
+      if (existingIndex !== -1) {
+        // Deselect - remove from array
+        setSelectedElements(prev => {
+          const newElements = prev.filter(el => el.selector !== selector);
+          // Re-number remaining elements
+          return newElements.map((el, idx) => ({ ...el, id: idx + 1 }));
+        });
+        // Remove badge
+        const badge = selectionBadgesRef.current.get(selector);
+        if (badge) {
+          badge.remove();
+          selectionBadgesRef.current.delete(selector);
+        }
+        // Update remaining badge numbers
+        setTimeout(() => {
+          let badgeNum = 1;
+          selectionBadgesRef.current.forEach((b) => {
+            b.textContent = String(badgeNum);
+            b.setAttribute('data-selection-badge', String(badgeNum));
+            badgeNum++;
+          });
+        }, 0);
+      } else {
+        // Select - add to array if under limit
+        if (selectedElements.length >= MAX_SELECTED_ELEMENTS) {
+          showWarning(`Maximum ${MAX_SELECTED_ELEMENTS} elements can be selected`);
+          return;
+        }
+        const newId = selectedElements.length + 1;
+        const elementData = createSelectedElementData(interactiveEl, newId);
+        setSelectedElements(prev => [...prev, elementData]);
+        // Create badge
+        const badge = createSelectionBadge(interactiveEl, newId);
+        selectionBadgesRef.current.set(selector, badge);
+      }
+    };
+
+    // Update badge positions on scroll
+    const handleScroll = () => {
+      updateBadgePositions();
+    };
+
     document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('click', handleClick, true); // Use capture phase
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', updateBadgePositions);
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('click', handleClick, true);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', updateBadgePositions);
     };
-  }, [isSelectionMode]);
+  }, [isSelectionMode, selectedElements, createSelectionBadge, updateBadgePositions, showWarning]);
 
   // Close form handler
   const handleClose = useCallback(() => {
@@ -343,6 +501,11 @@ export function FeedbackWidget({
   const handleExitSelectionMode = useCallback(() => {
     setIsSelectionMode(false);
     setIsExpanded(true); // Re-expand form when exiting selection mode
+    // Clean up selection badges (they'll be recreated if user re-enters selection mode)
+    selectionBadgesRef.current.forEach(badge => badge.remove());
+    selectionBadgesRef.current.clear();
+    // Clear warning
+    setSelectionWarning(null);
   }, []);
 
   // Render Shadow DOM content
@@ -367,7 +530,7 @@ export function FeedbackWidget({
       </div>
     ` : '';
 
-    const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(selectedElements.length) : '';
+    const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(selectedElements.length, selectionWarning) : '';
 
     shadowRoot.innerHTML = `
       <style>${getWidgetStyles()}</style>
@@ -498,6 +661,7 @@ export function FeedbackWidget({
     errorMessage,
     isSelectionMode,
     selectedElements.length,
+    selectionWarning,
   ]);
 
   return <div ref={hostRef} data-feedback-widget />;

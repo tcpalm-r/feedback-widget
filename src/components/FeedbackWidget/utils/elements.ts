@@ -15,6 +15,21 @@ export interface ElementInfo {
   };
 }
 
+// Serializable version without the HTMLElement reference (for storage/submission)
+export interface SelectedElementData {
+  id: number;
+  selector: string;
+  tagName: string;
+  className: string;
+  innerText: string;
+  boundingBox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
 /**
  * Interactive element selectors
  */
@@ -170,4 +185,19 @@ export function getAllInteractiveElements(): HTMLElement[] {
 
   // Filter out elements inside the feedback widget
   return Array.from(elements).filter(el => !el.closest('[data-feedback-widget]'));
+}
+
+/**
+ * Create SelectedElementData from an HTMLElement with a given ID
+ */
+export function createSelectedElementData(element: HTMLElement, id: number): SelectedElementData {
+  const info = getElementInfo(element);
+  return {
+    id,
+    selector: info.selector,
+    tagName: info.tagName,
+    className: info.className,
+    innerText: info.innerText,
+    boundingBox: info.boundingBox,
+  };
 }
