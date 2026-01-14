@@ -338,3 +338,25 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - Config validation uses TypeScript assertion functions (asserts config is Type) for type narrowing
   - Effective values pattern: props ?? globalConfig?.value ?? defaultValue for flexible override chain
 ---
+
+## Wed Jan 14 2026 - STORY-015
+- What was implemented:
+  - Enhanced Supabase error handling with getUserFriendlyErrorMessage() function
+  - Categorizes errors into network errors, CORS errors, rate limiting, auth errors, server errors
+  - Added isNetworkError flag to SubmitFeedbackResult for retry behavior
+  - Updated console.warn to console.error for missing env variables with clear instructions
+  - Retry button now actually re-submits the feedback (not just reset state)
+  - Network errors show "Retry" button text, other errors show "Try Again"
+  - Form validates empty message field and shows appropriate error
+- Files changed:
+  - src/lib/supabase.ts (added getUserFriendlyErrorMessage, isNetworkError flag)
+  - src/components/FeedbackWidget/index.tsx (added isNetworkError state, updated handleRetry to re-submit)
+  - src/components/FeedbackWidget/FeedbackForm.tsx (added isNetworkError param, dynamic button text)
+  - tests/unit/widget.test.ts (updated default error message expectation)
+  - prd.json (marked STORY-015 as passes: true)
+- **Learnings for future iterations:**
+  - Network errors can be detected by checking error.name === 'TypeError' or message patterns
+  - Use console.error for configuration errors (not console.warn) for better visibility
+  - Retry handlers can call the submit function directly to re-attempt submission
+  - Error classification helps show appropriate UI (retry for transient, different message for config)
+---

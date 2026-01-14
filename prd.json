@@ -235,7 +235,7 @@
       "id": "STORY-015",
       "title": "Error handling and edge cases",
       "priority": 15,
-      "passes": false,
+      "passes": true,
       "description": "Add robust error handling for Supabase connection issues, missing configuration, and form validation.",
       "acceptanceCriteria": [
         "Supabase connection errors show user-friendly message",
