@@ -290,3 +290,29 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - Elements are cleared on successful submission along with other form fields
   - escapeHtml helper prevents XSS when displaying user-selected element text
 ---
+
+## Wed Jan 14 2026 - STORY-013
+- What was implemented:
+  - Created tests/e2e/feedback-flow.spec.ts with comprehensive Playwright E2E tests
+  - Test: widget renders on demo page (checks button, tooltip in Shadow DOM)
+  - Test: form opens and closes (verifies form panel, type dropdown, message textarea, submit button)
+  - Test: enter selection mode and select elements (overlay, toolbar counter, Done button)
+  - Test: remove element from selection (element list badge, expanded list, remove/clear buttons)
+  - Test: submit feedback with selected elements (form submission with loading/success/error states)
+  - Test: ESC key exits selection mode
+  - Test: clicking widget button exits selection mode
+  - Test: form validation requires message (error banner for empty message)
+  - Updated playwright.config.ts with timeout settings
+  - Fixed selection mode overlay to use pointer-events: none for click pass-through
+- Files changed:
+  - tests/e2e/feedback-flow.spec.ts (new - comprehensive E2E tests)
+  - playwright.config.ts (added timeout and navigationTimeout settings)
+  - src/components/FeedbackWidget/SelectionMode.tsx (added pointer-events: none to overlay, pointer-events: auto to interactive children)
+  - prd.json (marked STORY-013 as passes: true)
+- **Learnings for future iterations:**
+  - Playwright doesn't support `pierce/` selector for Shadow DOM - use page.evaluate() with shadowRoot.querySelector()
+  - Shadow DOM elements with position:fixed don't have offsetParent - check getBoundingClientRect for visibility
+  - Selection mode overlay needs pointer-events: none to allow clicks to pass through to underlying elements
+  - Child elements of pointer-events: none parent need explicit pointer-events: auto to be clickable
+  - Testing Shadow DOM components requires custom helper functions for waitFor, click, getText, fill operations
+---

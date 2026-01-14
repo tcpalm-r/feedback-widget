@@ -202,7 +202,7 @@
       "id": "STORY-013",
       "title": "E2E tests for element selection flow",
       "priority": 13,
-      "passes": false,
+      "passes": true,
       "description": "Write Playwright E2E tests covering the full element selection and feedback submission flow.",
       "acceptanceCriteria": [
         "tests/e2e/feedback-flow.spec.ts exists",
