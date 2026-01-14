@@ -1,25 +1,56 @@
 // FeedbackWidget Styles
-// Colors sourced from brand guidelines (sonance-brand)
+// Colors and typography sourced from Sonance brand guidelines
 import { getSelectionModeStyles } from './SelectionMode';
 import { getElementListStyles } from './ElementList';
 
+// Sonance Brand Colors
 export const colors = {
-  primary: '#00A3E1', // Sonance Blue "The Beam" - accent color
-  primaryHover: '#0090c7', // Darker Sonance blue on hover
-  primaryLight: '#4dc3eb', // Lighter Sonance blue for accents
-  background: '#ffffff',
-  backgroundDark: '#333F48', // Sonance Charcoal
+  // Primary brand colors
+  charcoal: '#333F48', // Sonance Charcoal - primary brand color
+  blue: '#00A3E1', // Sonance Blue "The Beam" - accent color
+  blueHover: '#0090c7', // Darker Sonance blue on hover
+  blueLight: '#4dc3eb', // Lighter Sonance blue for accents
+
+  // Neutrals
+  background: '#ffffff', // Sonance White
+  lightGray: '#D9D9D6', // Sonance Light Gray
+
+  // Gray scale (derived from Charcoal)
+  gray50: '#f8f9fa',
+  gray100: '#f0f2f3',
+  gray400: '#8f999f',
+  gray500: '#6b7780',
+  gray600: '#515c64',
+  gray800: '#3a444c',
+
+  // Text
   text: '#ffffff',
   textDark: '#333F48', // Sonance Charcoal
-  border: '#D9D9D6', // Sonance Light Gray
+  textMuted: '#6b7780',
+
+  // Shadows
   shadow: 'rgba(0, 0, 0, 0.1)',
   shadowDark: 'rgba(0, 0, 0, 0.25)',
+};
+
+// Sonance Typography
+export const typography = {
+  fontFamily: "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  // Font weights as per brand guidelines
+  weightLight: 300, // Headlines, display text
+  weightRegular: 400, // Body text
+  weightMedium: 500, // Labels, emphasis
+  weightSemibold: 600, // Strong emphasis
+  weightBold: 700, // CTAs, buttons (small text only)
+  // Letter spacing
+  trackingTight: '-0.02em', // Headlines
+  trackingWide: '0.08em', // All caps, buttons
 };
 
 export const getWidgetStyles = (): string => `
   :host {
     all: initial;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: ${typography.fontFamily};
   }
 
   * {
@@ -30,11 +61,11 @@ export const getWidgetStyles = (): string => `
   .feedback-widget-morph {
     position: fixed;
     z-index: 999999;
-    font-family: inherit;
+    font-family: ${typography.fontFamily};
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background-color: ${colors.primary};
+    background-color: ${colors.blue};
     box-shadow: 0 4px 12px ${colors.shadowDark};
     transition:
       left 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -57,10 +88,10 @@ export const getWidgetStyles = (): string => `
 
   .feedback-widget-morph.expanded {
     width: 320px;
-    height: 450px;
+    height: 400px;
     border-radius: 12px;
     background-color: ${colors.background};
-    box-shadow: 0 10px 40px ${colors.shadowDark}, 0 0 0 1px ${colors.border};
+    box-shadow: 0 10px 40px ${colors.shadowDark}, 0 0 0 1px ${colors.lightGray};
     cursor: default;
   }
 
@@ -95,7 +126,7 @@ export const getWidgetStyles = (): string => `
   }
 
   .feedback-widget-morph:not(.expanded):hover {
-    background-color: ${colors.primaryHover};
+    background-color: ${colors.blueHover};
     transform: scale(1.05);
     box-shadow: 0 6px 16px ${colors.shadowDark};
   }
@@ -128,12 +159,14 @@ export const getWidgetStyles = (): string => `
   /* ===== TOOLTIP ===== */
   .feedback-tooltip {
     position: fixed;
-    background-color: ${colors.backgroundDark};
+    background-color: ${colors.charcoal};
     color: ${colors.text};
     padding: 8px 12px;
     border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: ${typography.weightMedium};
+    letter-spacing: ${typography.trackingWide};
+    text-transform: uppercase;
     white-space: nowrap;
     opacity: 0;
     visibility: hidden;
@@ -161,14 +194,15 @@ export const getWidgetStyles = (): string => `
     align-items: center;
     justify-content: space-between;
     padding: 16px 16px 12px;
-    border-bottom: 1px solid ${colors.border};
+    border-bottom: 1px solid ${colors.lightGray};
   }
 
   .feedback-form-title {
     margin: 0;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: ${typography.weightMedium};
     color: ${colors.textDark};
+    letter-spacing: ${typography.trackingTight};
   }
 
   .feedback-close-button {
@@ -181,18 +215,18 @@ export const getWidgetStyles = (): string => `
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #6b7280;
+    color: ${colors.gray500};
     transition: all 0.15s ease;
   }
 
   .feedback-close-button:hover {
-    background-color: #f3f4f6;
+    background-color: ${colors.gray100};
     color: ${colors.textDark};
   }
 
   .feedback-close-button:focus {
     outline: none;
-    box-shadow: 0 0 0 2px ${colors.primaryLight};
+    box-shadow: 0 0 0 2px ${colors.blueLight};
   }
 
   .feedback-close-button svg {
@@ -207,7 +241,7 @@ export const getWidgetStyles = (): string => `
 
   .feedback-form-body {
     flex: 1;
-    padding: 16px;
+    padding: 16px 16px 12px 16px;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -221,86 +255,93 @@ export const getWidgetStyles = (): string => `
   }
 
   .feedback-label {
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: ${typography.weightMedium};
     color: ${colors.textDark};
+    text-transform: uppercase;
+    letter-spacing: ${typography.trackingWide};
   }
 
   .feedback-select {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid ${colors.border};
+    border: 1px solid ${colors.lightGray};
     border-radius: 8px;
     font-size: 14px;
+    font-weight: ${typography.weightRegular};
     color: ${colors.textDark};
     background-color: ${colors.background};
     cursor: pointer;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23333F48' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
     padding-right: 36px;
   }
 
   .feedback-select:hover {
-    border-color: #9ca3af;
+    border-color: ${colors.gray400};
   }
 
   .feedback-select:focus {
     outline: none;
-    border-color: ${colors.primary};
+    border-color: ${colors.blue};
     box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.15);
   }
 
   .feedback-textarea {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid ${colors.border};
+    border: 1px solid ${colors.lightGray};
     border-radius: 8px;
     font-size: 14px;
+    font-weight: ${typography.weightRegular};
     color: ${colors.textDark};
     background-color: ${colors.background};
     resize: vertical;
     min-height: 100px;
     font-family: inherit;
+    line-height: 1.6;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
   .feedback-textarea::placeholder {
-    color: #9ca3af;
+    color: ${colors.gray400};
   }
 
   .feedback-textarea:hover {
-    border-color: #9ca3af;
+    border-color: ${colors.gray400};
   }
 
   .feedback-textarea:focus {
     outline: none;
-    border-color: ${colors.primary};
+    border-color: ${colors.blue};
     box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.15);
   }
 
   .feedback-submit-button {
     width: 100%;
     padding: 12px 16px;
-    background-color: ${colors.primary};
+    background-color: ${colors.charcoal};
     color: ${colors.text};
     border: none;
     border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: ${typography.weightMedium};
+    text-transform: uppercase;
+    letter-spacing: ${typography.trackingWide};
     cursor: pointer;
     transition: background-color 0.15s ease, transform 0.1s ease;
   }
 
   .feedback-submit-button:hover {
-    background-color: ${colors.primaryHover};
+    background-color: ${colors.gray800};
   }
 
   .feedback-submit-button:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.3);
+    box-shadow: 0 0 0 3px rgba(51, 63, 72, 0.3);
   }
 
   .feedback-submit-button:active {
@@ -340,7 +381,7 @@ export const getWidgetStyles = (): string => `
   }
 
   .feedback-submit-button:disabled:hover {
-    background-color: ${colors.primary};
+    background-color: ${colors.charcoal};
     transform: none;
   }
 
@@ -360,7 +401,7 @@ export const getWidgetStyles = (): string => `
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background-color: #10b981;
+    background-color: ${colors.blue};
     display: flex;
     align-items: center;
     justify-content: center;
@@ -379,8 +420,9 @@ export const getWidgetStyles = (): string => `
   .feedback-success-message {
     margin: 0;
     font-size: 14px;
-    color: #374151;
-    line-height: 1.5;
+    font-weight: ${typography.weightRegular};
+    color: ${colors.textDark};
+    line-height: 1.6;
   }
 
   /* Error state */
@@ -443,7 +485,7 @@ export const getWidgetStyles = (): string => `
   /* Disabled states for form elements */
   .feedback-select:disabled,
   .feedback-textarea:disabled {
-    background-color: #f9fafb;
+    background-color: ${colors.gray50};
     cursor: not-allowed;
     opacity: 0.7;
   }
