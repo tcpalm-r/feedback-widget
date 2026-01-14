@@ -316,3 +316,25 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - Child elements of pointer-events: none parent need explicit pointer-events: auto to be clickable
   - Testing Shadow DOM components requires custom helper functions for waitFor, click, getText, fill operations
 ---
+
+## Wed Jan 14 2026 - STORY-014
+- What was implemented:
+  - Created FeedbackWidget.init() static method for configuration
+  - Created src/components/FeedbackWidget/utils/config.ts with validation logic
+  - appId is required - throws error if missing, empty, or not a string
+  - position option supports: bottom-right, bottom-left, top-right, top-left (default: bottom-right)
+  - jwtConfig option allows customizing JWT detection (cookie keys, localStorage keys, claim name)
+  - Props can override init() config for flexibility (effectiveAppId, effectivePosition, effectiveJwtConfig)
+  - Updated demo page to use init() with appId: 'demo-app'
+  - Re-exported types (FeedbackWidgetConfig, WidgetPosition, JwtConfig) from index.tsx for convenience
+- Files changed:
+  - src/components/FeedbackWidget/utils/config.ts (new - config store with validation)
+  - src/components/FeedbackWidget/index.tsx (added init() method, effective config resolution)
+  - src/app/demo/page.tsx (updated to use init() and useIsClient pattern)
+  - prd.json (marked STORY-014 as passes: true)
+- **Learnings for future iterations:**
+  - Static methods on React components use function assignment pattern: FeedbackWidget.init = function init(...) {}
+  - ESLint react-hooks/set-state-in-effect prohibits setState in useEffect - use useSyncExternalStore pattern for client detection
+  - Config validation uses TypeScript assertion functions (asserts config is Type) for type narrowing
+  - Effective values pattern: props ?? globalConfig?.value ?? defaultValue for flexible override chain
+---

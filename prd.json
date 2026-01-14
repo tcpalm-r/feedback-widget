@@ -219,7 +219,7 @@
       "id": "STORY-014",
       "title": "Widget configuration API",
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "description": "Implement FeedbackWidget.init() configuration API for host applications to customize the widget.",
       "acceptanceCriteria": [
         "FeedbackWidget.init() accepts configuration object",
