@@ -243,3 +243,27 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - Hide overlay temporarily when detecting to avoid self-detection
   - hoveredElementRef uses ref instead of state since it doesn't trigger re-renders
 ---
+
+## Wed Jan 14 2026 - STORY-011
+- What was implemented:
+  - Click handler in selection mode for selecting/deselecting interactive elements
+  - Numbered badge overlays (1-5) that appear on selected elements
+  - 5-element maximum selection limit with warning message display
+  - SelectedElementData interface for serializable element information
+  - Rich data capture for each element: selector, tagName, className, innerText, boundingBox
+  - Counter display in toolbar showing "X/5 selected"
+  - Badge position updates on scroll and window resize
+  - Proper re-numbering of badges when deselecting elements
+  - Warning toast that appears when trying to select more than 5 elements
+- Files changed:
+  - src/components/FeedbackWidget/utils/elements.ts (added SelectedElementData type and createSelectedElementData helper)
+  - src/components/FeedbackWidget/index.tsx (added click selection, badge management, warning state)
+  - src/components/FeedbackWidget/SelectionMode.tsx (added warning parameter to overlay HTML and warning styles)
+  - prd.json (marked STORY-011 as passes: true)
+- **Learnings for future iterations:**
+  - Use capture phase (third param true) for click event to intercept before default actions
+  - e.preventDefault() and e.stopPropagation() needed to prevent link navigation during selection
+  - Badge map uses selector as key for reliable element identification
+  - When refs are used in cleanup functions, copy to local variable first to satisfy ESLint
+  - Selection badges are created in document.body (outside Shadow DOM) for proper z-index
+---

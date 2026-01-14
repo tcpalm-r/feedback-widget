@@ -169,7 +169,7 @@
       "id": "STORY-011",
       "title": "Multi-element selection with limit",
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "description": "Allow users to click to select/deselect multiple elements (up to 5) and capture rich data about each selected element.",
       "acceptanceCriteria": [
         "Clicking an interactive element selects it",
