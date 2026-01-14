@@ -154,7 +154,7 @@
       "id": "STORY-010",
       "title": "Interactive element highlighting",
       "priority": 10,
-      "passes": false,
+      "passes": true,
       "description": "In selection mode, detect and highlight interactive elements (buttons, links, inputs, elements with roles or click handlers) on hover.",
       "acceptanceCriteria": [
         "Interactive elements are detected: buttons, links, inputs, [role], [onclick], elements with tabindex",

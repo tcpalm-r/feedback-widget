@@ -218,3 +218,28 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - Disable dragging when in selection mode to prevent accidental moves
   - setSelectedElements warning is expected until STORY-010/011 implement element selection
 ---
+
+## Tue Jan 14 2026 - STORY-010
+- What was implemented:
+  - Created element detection utility in src/components/FeedbackWidget/utils/elements.ts
+  - Detects interactive elements: buttons, links, inputs, [role], [onclick], [tabindex]
+  - isInteractiveElement() function checks if an element matches interactive selectors
+  - findInteractiveParent() finds closest interactive parent when clicking child elements
+  - generateSelector() creates unique CSS selectors for elements
+  - getElementInfo() captures rich data: selector, tagName, className, innerText, boundingBox
+  - truncateText() helper for limiting text length in captured data
+  - Added hover highlighting in selection mode with visual outline
+  - Highlight overlay is created outside Shadow DOM for proper positioning
+  - Non-interactive elements do not show highlight
+  - Highlight uses indigo border (matching brand) with light background
+- Files changed:
+  - src/components/FeedbackWidget/utils/elements.ts (new - element detection utilities)
+  - src/components/FeedbackWidget/index.tsx (added hover highlighting effect)
+  - prd.json (marked STORY-010 as passes: true)
+- **Learnings for future iterations:**
+  - ESLint react-hooks/set-state-in-effect rule prohibits setState in effects - use refs for non-render state
+  - Highlight overlay must be created in document.body (outside Shadow DOM) for proper z-index stacking
+  - Use document.elementFromPoint() to detect element under cursor
+  - Hide overlay temporarily when detecting to avoid self-detection
+  - hoveredElementRef uses ref instead of state since it doesn't trigger re-renders
+---
