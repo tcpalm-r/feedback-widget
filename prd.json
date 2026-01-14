@@ -261,6 +261,24 @@
         "Example integration code snippet",
         "npm run build passes"
       ]
+    },
+    {
+      "id": "STORY-017",
+      "title": "Morph animation and corner snapping",
+      "priority": 17,
+      "passes": true,
+      "description": "Implement smooth morph animation where the circular button transforms into the form panel. Add corner snapping so the widget automatically snaps to the nearest viewport corner when dragged, with directional expansion toward the center.",
+      "acceptanceCriteria": [
+        "Widget button morphs into form panel with smooth CSS transitions",
+        "Form panel morphs back to button when closed",
+        "Widget snaps to nearest viewport corner (bottom-right, bottom-left, top-right, top-left) when drag ends",
+        "Snap animation is smooth with bouncy easing",
+        "Form expands toward center based on corner position (e.g., bottom-right expands up-left)",
+        "Widget stays anchored to corner on window resize",
+        "Sonance brand colors applied (#00A3E1)",
+        "All existing E2E tests pass",
+        "npm run build passes"
+      ]
     }
   ]
 }
