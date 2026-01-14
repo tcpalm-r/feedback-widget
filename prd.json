@@ -185,7 +185,7 @@
       "id": "STORY-012",
       "title": "Selected elements UI in form",
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "description": "Display selected elements in the feedback form as an expandable list with remove functionality.",
       "acceptanceCriteria": [
         "src/components/FeedbackWidget/ElementList.tsx exists",

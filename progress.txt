@@ -267,3 +267,26 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - When refs are used in cleanup functions, copy to local variable first to satisfy ESLint
   - Selection badges are created in document.body (outside Shadow DOM) for proper z-index
 ---
+## Wed Jan 14 2026 - STORY-012
+- What was implemented:
+  - Created ElementList.tsx component for displaying selected elements in feedback form
+  - Expandable badge showing "X elements selected" that can be clicked to expand
+  - Expanded list shows each selected element with numbered badge, tag name, and truncated text
+  - Individual remove button for each element with hover state
+  - "Clear all" button to remove all selected elements at once
+  - Elements data included in Supabase submission (elements field in feedback table)
+  - Form state resets selected elements on successful submission
+  - Added isElementListExpanded state for toggling list visibility
+- Files changed:
+  - src/components/FeedbackWidget/ElementList.tsx (new - element list component)
+  - src/components/FeedbackWidget/FeedbackForm.tsx (integrated ElementList)
+  - src/components/FeedbackWidget/index.tsx (added handlers and state for element list)
+  - src/components/FeedbackWidget/styles.ts (imports ElementList styles)
+  - prd.json (marked STORY-012 as passes: true)
+- **Learnings for future iterations:**
+  - Shadow DOM components need HTML-as-string pattern for nested components too
+  - Event delegation for dynamically generated elements uses data attributes (data-remove-index)
+  - Element list state (expanded/collapsed) is separate from selected elements state
+  - Elements are cleared on successful submission along with other form fields
+  - escapeHtml helper prevents XSS when displaying user-selected element text
+---
