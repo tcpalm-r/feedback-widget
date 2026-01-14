@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from '
 import { getWidgetStyles } from './styles';
 import { constrainToViewport } from './utils/storage';
 import { getFeedbackFormHTML, FeedbackType, SubmissionState } from './FeedbackForm';
+import { getSelectionModeOverlayHTML } from './SelectionMode';
 import {
   initializePosition,
   setPosition,
@@ -52,6 +53,8 @@ export function FeedbackWidget({
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedElements, setSelectedElements] = useState<unknown[]>([]);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const hasDraggedRef = useRef(false);
@@ -158,6 +161,20 @@ export function FeedbackWidget({
     };
   }, []);
 
+  // ESC key handler to exit selection mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSelectionMode) {
+        setIsSelectionMode(false);
+      }
+    };
+
+    if (isSelectionMode) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isSelectionMode]);
+
   // Close form handler
   const handleClose = useCallback(() => {
     if (autoCloseTimerRef.current) {
@@ -224,6 +241,18 @@ export function FeedbackWidget({
     setErrorMessage('');
   }, []);
 
+  // Enter selection mode handler
+  const handleEnterSelectionMode = useCallback(() => {
+    setIsSelectionMode(true);
+    setIsExpanded(false); // Collapse form when entering selection mode
+  }, []);
+
+  // Exit selection mode handler
+  const handleExitSelectionMode = useCallback(() => {
+    setIsSelectionMode(false);
+    setIsExpanded(true); // Re-expand form when exiting selection mode
+  }, []);
+
   // Render Shadow DOM content
   useEffect(() => {
     if (!hostRef.current || !isClient) return;
@@ -238,25 +267,29 @@ export function FeedbackWidget({
     // Use absolute positioning with draggable state
     const draggingClass = isDragging ? 'dragging' : '';
     const expandedClass = isExpanded ? 'expanded' : '';
+    const selectionModeClass = isSelectionMode ? 'selection-mode' : '';
 
     const formHTML = isExpanded ? `
       <div class="feedback-form-panel">
-        ${getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage)}
+        ${getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, selectedElements.length)}
       </div>
     ` : '';
 
+    const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(selectedElements.length) : '';
+
     shadowRoot.innerHTML = `
       <style>${getWidgetStyles()}</style>
-      <div class="feedback-widget-container draggable ${expandedClass}" style="left: ${widgetPosition.x}px; top: ${widgetPosition.y}px;">
+      ${selectionModeOverlay}
+      <div class="feedback-widget-container draggable ${expandedClass} ${selectionModeClass}" style="left: ${widgetPosition.x}px; top: ${widgetPosition.y}px;">
         <div class="feedback-button-wrapper">
           <button
             class="feedback-button ${draggingClass}"
-            aria-label="Open feedback form"
+            aria-label="${isSelectionMode ? 'Exit selection mode' : 'Open feedback form'}"
             aria-expanded="${isExpanded}"
           >
             ${MessageSquareIcon}
           </button>
-          <div class="feedback-tooltip" role="tooltip">Feedback</div>
+          <div class="feedback-tooltip" role="tooltip">${isSelectionMode ? 'Exit Selection' : 'Feedback'}</div>
         </div>
         ${formHTML}
       </div>
@@ -265,17 +298,34 @@ export function FeedbackWidget({
     // Add event listeners
     const button = shadowRoot.querySelector('.feedback-button');
     if (button) {
-      // Handle mousedown for drag start
-      const onMouseDown = (e: Event) => handleMouseDown(e as MouseEvent);
+      // Handle mousedown for drag start (only when not in selection mode)
+      const onMouseDown = (e: Event) => {
+        if (!isSelectionMode) {
+          handleMouseDown(e as MouseEvent);
+        }
+      };
       button.addEventListener('mousedown', onMouseDown);
 
       // Handle click (only if not dragged)
       const onClick = () => {
         if (!hasDraggedRef.current) {
-          setIsExpanded((prev) => !prev);
+          if (isSelectionMode) {
+            // Exit selection mode when clicking button
+            handleExitSelectionMode();
+          } else {
+            setIsExpanded((prev) => !prev);
+          }
         }
       };
       button.addEventListener('click', onClick);
+    }
+
+    // Selection mode event listeners
+    if (isSelectionMode) {
+      const doneButton = shadowRoot.querySelector('.selection-mode-done-button');
+      if (doneButton) {
+        doneButton.addEventListener('click', handleExitSelectionMode);
+      }
     }
 
     // Form event listeners (when expanded)
@@ -285,6 +335,7 @@ export function FeedbackWidget({
       const typeSelect = shadowRoot.querySelector('#feedback-type') as HTMLSelectElement;
       const messageTextarea = shadowRoot.querySelector('#feedback-message') as HTMLTextAreaElement;
       const retryButton = shadowRoot.querySelector('.feedback-retry-button');
+      const selectOnScreenButton = shadowRoot.querySelector('.feedback-select-button');
 
       if (closeButton) {
         closeButton.addEventListener('click', handleClose);
@@ -309,6 +360,10 @@ export function FeedbackWidget({
       if (retryButton) {
         retryButton.addEventListener('click', handleRetry);
       }
+
+      if (selectOnScreenButton) {
+        selectOnScreenButton.addEventListener('click', handleEnterSelectionMode);
+      }
     }
 
     // Cleanup function
@@ -318,13 +373,19 @@ export function FeedbackWidget({
         button.removeEventListener('mousedown', handleMouseDown as EventListener);
         button.removeEventListener('click', () => {});
       }
+      if (isSelectionMode) {
+        const doneButton = shadowRoot.querySelector('.selection-mode-done-button');
+        if (doneButton) doneButton.removeEventListener('click', handleExitSelectionMode);
+      }
       if (isExpanded) {
         const closeButton = shadowRoot.querySelector('.feedback-close-button');
         const form = shadowRoot.querySelector('.feedback-form-body');
         const retryButton = shadowRoot.querySelector('.feedback-retry-button');
+        const selectOnScreenButton = shadowRoot.querySelector('.feedback-select-button');
         if (closeButton) closeButton.removeEventListener('click', handleClose);
         if (form) form.removeEventListener('submit', handleSubmit);
         if (retryButton) retryButton.removeEventListener('click', handleRetry);
+        if (selectOnScreenButton) selectOnScreenButton.removeEventListener('click', handleEnterSelectionMode);
       }
     };
   }, [
@@ -337,10 +398,14 @@ export function FeedbackWidget({
     handleClose,
     handleSubmit,
     handleRetry,
+    handleEnterSelectionMode,
+    handleExitSelectionMode,
     feedbackType,
     feedbackMessage,
     submissionState,
     errorMessage,
+    isSelectionMode,
+    selectedElements.length,
   ]);
 
   return <div ref={hostRef} data-feedback-widget />;

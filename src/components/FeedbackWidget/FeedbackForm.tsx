@@ -1,6 +1,8 @@
 // FeedbackForm - Generates form HTML for Shadow DOM
 // This exports functions that return HTML strings since the widget uses Shadow DOM
 
+import { getSelectOnScreenButtonHTML } from './SelectionMode';
+
 // X icon SVG for close button (from Lucide)
 const XIcon = `
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -58,7 +60,8 @@ export function getFeedbackFormHTML(
   selectedType: FeedbackType = 'general',
   message: string = '',
   submissionState: SubmissionState = 'idle',
-  errorMessage: string = ''
+  errorMessage: string = '',
+  selectedElementsCount: number = 0
 ): string {
   const typeOptions = feedbackTypeOptions
     .map(
@@ -133,6 +136,14 @@ export function getFeedbackFormHTML(
             ${isDisabled ? 'disabled' : ''}
           >${message}</textarea>
         </div>
+
+        ${getSelectOnScreenButtonHTML(isDisabled)}
+
+        ${selectedElementsCount > 0 ? `
+          <div class="feedback-elements-badge">
+            ${selectedElementsCount} element${selectedElementsCount > 1 ? 's' : ''} selected
+          </div>
+        ` : ''}
 
         <button type="submit" class="feedback-submit-button" ${isDisabled ? 'disabled' : ''}>
           ${isLoading ? `${LoaderIcon} Submitting...` : 'Submit'}
