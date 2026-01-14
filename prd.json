@@ -250,7 +250,7 @@
       "id": "STORY-016",
       "title": "Documentation and usage guide",
       "priority": 16,
-      "passes": false,
+      "passes": true,
       "description": "Create comprehensive README with installation instructions, configuration options, and Supabase setup guide.",
       "acceptanceCriteria": [
         "README.md exists with project overview",

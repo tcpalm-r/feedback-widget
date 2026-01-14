@@ -360,3 +360,23 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - Retry handlers can call the submit function directly to re-attempt submission
   - Error classification helps show appropriate UI (retry for transient, different message for config)
 ---
+
+## Wed Jan 14 2026 - STORY-016
+- What was implemented:
+  - Created comprehensive README.md with project overview
+  - Installation instructions (git clone, npm install)
+  - Environment setup instructions (.env.local with Supabase credentials)
+  - Supabase setup guide with two options: Dashboard SQL Editor or Supabase CLI
+  - Migration details table explaining feedback table schema
+  - Configuration options documented (appId, position, jwtConfig)
+  - Complete example integration code snippet with useIsClient pattern
+  - Development commands section (dev, test, test:e2e, build, lint)
+  - Project structure overview
+- Files changed:
+  - README.md (replaced default Next.js boilerplate with comprehensive docs)
+  - prd.json (marked STORY-016 as passes: true)
+- **Learnings for future iterations:**
+  - README should cover the full setup flow: clone, install, env setup, database setup, configuration
+  - Include example integration code that follows the patterns used in the demo page
+  - Document both CLI and GUI options for database migrations (different user preferences)
+---
