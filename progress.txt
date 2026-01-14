@@ -6,6 +6,7 @@ Started: Wed Jan 14 12:25:23 PST 2026
 - Use `npm run test:e2e` for Playwright E2E tests (tests/e2e/)
 - Environment variables for Supabase: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
 - .env.example is explicitly tracked in git (exception added to .gitignore)
+- Use Next.js `Link` component for internal navigation (ESLint enforces no-html-link-for-pages)
 
 ---
 
@@ -49,4 +50,23 @@ Started: Wed Jan 14 12:25:23 PST 2026
   - Supabase migrations go in supabase/migrations/ directory
   - RLS policies use TO public for anonymous access, TO authenticated for logged-in users
   - Use gen_random_uuid() for UUID defaults in Supabase/PostgreSQL
+---
+
+## Wed Jan 14 2026 - STORY-003
+- What was implemented:
+  - Created demo page at src/app/demo/page.tsx
+  - Navigation bar with logo link, nav links, notifications button, and sign-in button
+  - Feature cards section with three card components
+  - Contact form with text inputs, email, select dropdown, textarea, checkbox, and buttons
+  - Button variants section (primary, success, danger, warning, outline, ghost, disabled)
+  - Links section with different link styles
+  - Interactive elements with ARIA roles (role=button, role=checkbox, role=tab)
+  - Data table with action buttons (edit/delete)
+  - Footer with policy and contact links
+- Files changed:
+  - src/app/demo/page.tsx (new)
+  - prd.json (marked STORY-003 as passes: true)
+- **Learnings for future iterations:**
+  - Use Next.js Link component for internal navigation to pass ESLint rules
+  - Demo page provides good test surface for element selection feature with varied interactive elements
 ---

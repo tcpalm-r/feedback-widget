@@ -36,7 +36,7 @@
       "id": "STORY-003",
       "title": "Demo page with sample UI",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "description": "Create a demo page at /demo with various interactive elements to test the element selection feature of the feedback widget.",
       "acceptanceCriteria": [
         "src/app/demo/page.tsx exists",
