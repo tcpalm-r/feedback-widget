@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FeedbackWidget } from "@/components/FeedbackWidget";
 
 export default function DemoPage() {
   return (
@@ -361,6 +362,9 @@ export default function DemoPage() {
           </div>
         </div>
       </footer>
+
+      {/* Feedback Widget */}
+      <FeedbackWidget />
     </div>
   );
 }
