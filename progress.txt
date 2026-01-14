@@ -1,0 +1,52 @@
+# Ralph Progress Log
+Started: Wed Jan 14 12:25:23 PST 2026
+
+## Codebase Patterns
+- Use `npm run test` for Vitest unit tests (tests/unit/)
+- Use `npm run test:e2e` for Playwright E2E tests (tests/e2e/)
+- Environment variables for Supabase: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+- .env.example is explicitly tracked in git (exception added to .gitignore)
+
+---
+
+## Wed Jan 14 12:27 PST 2026 - STORY-001
+- What was implemented:
+  - Installed @supabase/supabase-js and lucide-react as production dependencies
+  - Installed and configured Vitest with @vitejs/plugin-react, jsdom, @testing-library/react
+  - Installed and configured Playwright for E2E testing
+  - Created vitest.config.ts with jsdom environment and React plugin
+  - Created playwright.config.ts with chromium project and webServer config
+  - Created .env.example with Supabase placeholders
+  - Added test and test:e2e scripts to package.json
+  - Created placeholder test files in tests/unit and tests/e2e
+- Files changed:
+  - package.json (added dependencies and scripts)
+  - package-lock.json (updated)
+  - vitest.config.ts (new)
+  - playwright.config.ts (new)
+  - .env.example (new)
+  - .gitignore (added !.env.example exception)
+  - tests/unit/setup.test.ts (new)
+  - tests/e2e/setup.spec.ts (new)
+- **Learnings for future iterations:**
+  - .gitignore excludes .env* by default, so .env.example needs explicit exception
+  - Vitest 4.x with React needs @vitejs/plugin-react for JSX support
+  - Playwright webServer config auto-starts dev server for E2E tests
+---
+
+## Wed Jan 14 2026 - STORY-002
+- What was implemented:
+  - Created supabase/migrations/ directory structure
+  - Created 001_feedback_table.sql migration file with full schema
+  - Schema includes: id (UUID), app_id (TEXT NOT NULL), type (TEXT), message (TEXT NOT NULL), elements (JSONB), metadata (JSONB), created_at (TIMESTAMPTZ)
+  - Added RLS policy for public INSERT (anyone can submit feedback)
+  - Added RLS policy for authenticated SELECT (only authenticated users can view)
+  - Added indexes on app_id and created_at for query performance
+- Files changed:
+  - supabase/migrations/001_feedback_table.sql (new)
+  - prd.json (marked STORY-002 as passes: true)
+- **Learnings for future iterations:**
+  - Supabase migrations go in supabase/migrations/ directory
+  - RLS policies use TO public for anonymous access, TO authenticated for logged-in users
+  - Use gen_random_uuid() for UUID defaults in Supabase/PostgreSQL
+---

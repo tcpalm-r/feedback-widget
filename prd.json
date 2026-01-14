@@ -5,7 +5,7 @@
       "id": "STORY-001",
       "title": "Project setup and dependencies",
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "description": "Install and configure all required dependencies for the feedback widget project including Supabase client, Lucide React icons, Vitest for unit testing, and Playwright for E2E testing.",
       "acceptanceCriteria": [
         "Supabase client (@supabase/supabase-js) is installed",
@@ -21,7 +21,7 @@
       "id": "STORY-002",
       "title": "Supabase schema migration",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "description": "Create SQL migration file for the feedback table with proper schema and Row Level Security policies.",
       "acceptanceCriteria": [
         "supabase/migrations/ directory exists",
