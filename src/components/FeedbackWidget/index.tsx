@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
 import { getWidgetStyles } from './styles';
 import { getFeedbackFormHTML, FeedbackType, SubmissionState } from './FeedbackForm';
-import { getSelectionModeOverlayHTML } from './SelectionMode';
-import { isInteractiveElement, findInteractiveParent, createSelectedElementData, SelectedElementData } from './utils/elements';
+import { getSelectionModeOverlayHTML, canvasUtils, DrawnRectangle } from './SelectionMode';
+import { CapturedScreenshot, captureScreenshot, releaseScreenshot } from './utils/screenshot';
 import {
   initializePosition,
   startDrag,
@@ -111,19 +111,23 @@ export function FeedbackWidget({
   isSelectionModeRef.current = isSelectionMode;
   // Ref to hold current handleMouseDown (so container listener doesn't capture stale version)
   const handleMouseDownRef = useRef<(e: MouseEvent) => void>(() => {});
-  const [selectedElements, setSelectedElements] = useState<SelectedElementData[]>([]);
+  // Screenshot capture state (replaces selectedElements)
+  const [capturedScreenshots, setCapturedScreenshots] = useState<CapturedScreenshot[]>([]);
+  const [drawnRectangles, setDrawnRectangles] = useState<DrawnRectangle[]>([]);
   const [selectionWarning, setSelectionWarning] = useState<string | null>(null);
-  const [isElementListExpanded, setIsElementListExpanded] = useState(false);
+  const [isScreenshotListExpanded, setIsScreenshotListExpanded] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartPositionRef = useRef<{ x: number; y: number } | null>(null);
   const hasDraggedRef = useRef(false);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const highlightOverlayRef = useRef<HTMLDivElement | null>(null);
-  const hoveredElementRef = useRef<HTMLElement | null>(null);
-  const selectionBadgesRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Canvas drawing refs for lasso selection
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const isDrawingRef = useRef(false);
+  const drawStartRef = useRef<{ x: number; y: number } | null>(null);
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const MAX_SELECTED_ELEMENTS = 5;
+  const MAX_SCREENSHOTS = 5;
 
   const isClient = useIsClient();
 
@@ -224,9 +228,8 @@ export function FeedbackWidget({
     };
   }, [handleMouseMove, handleMouseUp]);
 
-  // Clear auto-close timer, warning timeout, highlight overlay, and selection badges on unmount
+  // Clear auto-close timer, warning timeout, and release screenshots on unmount
   useEffect(() => {
-    const badgesMap = selectionBadgesRef.current;
     return () => {
       if (autoCloseTimerRef.current) {
         clearTimeout(autoCloseTimerRef.current);
@@ -234,14 +237,10 @@ export function FeedbackWidget({
       if (warningTimeoutRef.current) {
         clearTimeout(warningTimeoutRef.current);
       }
-      if (highlightOverlayRef.current) {
-        highlightOverlayRef.current.remove();
-        highlightOverlayRef.current = null;
-      }
-      // Clean up all selection badges
-      badgesMap.forEach(badge => badge.remove());
-      badgesMap.clear();
+      // Release all captured screenshot blob URLs
+      capturedScreenshots.forEach(screenshot => releaseScreenshot(screenshot));
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ESC key handler to exit selection mode
@@ -258,49 +257,6 @@ export function FeedbackWidget({
     }
   }, [isSelectionMode]);
 
-  // Helper to create a numbered badge for a selected element
-  // Uses Sonance brand colors and Montserrat font
-  const createSelectionBadge = useCallback((element: HTMLElement, number: number): HTMLDivElement => {
-    const badge = document.createElement('div');
-    badge.className = 'feedback-selection-badge';
-    badge.setAttribute('data-selection-badge', String(number));
-    badge.textContent = String(number);
-    badge.style.cssText = `
-      position: fixed;
-      z-index: 999998;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background-color: #00A3E1;
-      color: white;
-      font-size: 12px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    `;
-    const rect = element.getBoundingClientRect();
-    badge.style.left = `${rect.left - 8}px`;
-    badge.style.top = `${rect.top - 8}px`;
-    document.body.appendChild(badge);
-    return badge;
-  }, []);
-
-  // Helper to update all badge positions (for scroll/resize)
-  const updateBadgePositions = useCallback(() => {
-    selectionBadgesRef.current.forEach((badge, selector) => {
-      const element = document.querySelector(selector) as HTMLElement | null;
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        badge.style.left = `${rect.left - 8}px`;
-        badge.style.top = `${rect.top - 8}px`;
-      }
-    });
-  }, []);
-
   // Helper to show a warning message
   const showWarning = useCallback((message: string) => {
     setSelectionWarning(message);
@@ -312,184 +268,164 @@ export function FeedbackWidget({
     }, 2000);
   }, []);
 
-  // Hover highlighting and click selection in selection mode
+  // Canvas-based lasso rectangle drawing in selection mode
+  // This effect sets up canvas event handlers for drawing rectangles
   useEffect(() => {
-    if (!isSelectionMode) {
-      // Clean up highlight overlay when exiting selection mode
-      if (highlightOverlayRef.current) {
-        highlightOverlayRef.current.remove();
-        highlightOverlayRef.current = null;
-      }
-      hoveredElementRef.current = null;
-      // Note: We keep the badges when exiting selection mode so they're visible
+    if (!isSelectionMode || !shadowRootRef.current) {
+      // Clean up canvas ref when exiting selection mode
+      canvasRef.current = null;
+      canvasCtxRef.current = null;
+      isDrawingRef.current = false;
+      drawStartRef.current = null;
       return;
     }
 
-    // Create highlight overlay element if it doesn't exist
-    // Uses Sonance "The Beam" blue (#00A3E1) for consistent branding
-    if (!highlightOverlayRef.current) {
-      const overlay = document.createElement('div');
-      overlay.id = 'feedback-highlight-overlay';
-      overlay.style.cssText = `
-        position: fixed;
-        pointer-events: none;
-        z-index: 999997;
-        border: 2px solid #00A3E1;
-        background-color: rgba(0, 163, 225, 0.1);
-        border-radius: 4px;
-        transition: all 0.1s ease-out;
-        display: none;
-      `;
-      document.body.appendChild(overlay);
-      highlightOverlayRef.current = overlay;
-    }
+    // Get canvas element from shadow DOM
+    const canvas = shadowRootRef.current.querySelector('.selection-mode-canvas') as HTMLCanvasElement | null;
+    if (!canvas) return;
 
-    const overlay = highlightOverlayRef.current;
+    canvasRef.current = canvas;
+    const ctx = canvasUtils.initCanvas(canvas);
+    if (!ctx) return;
+    canvasCtxRef.current = ctx;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      // Get element under cursor (ignoring the overlay and widget)
-      overlay.style.display = 'none';
-      const elementUnderCursor = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
-      overlay.style.display = hoveredElementRef.current ? 'block' : 'none';
+    // Redraw existing rectangles
+    canvasUtils.redrawRectangles(ctx, canvas, drawnRectangles);
 
-      if (!elementUnderCursor) {
-        hoveredElementRef.current = null;
-        overlay.style.display = 'none';
+    const handleCanvasMouseDown = (e: MouseEvent) => {
+      // Don't start drawing if clicking on toolbar or hint
+      const target = e.target as HTMLElement;
+      if (target.closest('.selection-mode-toolbar') || target.closest('.selection-mode-hint')) {
         return;
       }
 
-      // Skip if inside feedback widget
-      if (elementUnderCursor.closest('[data-feedback-widget]')) {
-        hoveredElementRef.current = null;
-        overlay.style.display = 'none';
-        return;
-      }
-
-      // Skip if it's part of the selection mode overlay (inside shadow DOM)
-      if (elementUnderCursor.closest('#feedback-highlight-overlay')) {
-        return;
-      }
-
-      // Skip selection badges
-      if (elementUnderCursor.classList.contains('feedback-selection-badge')) {
-        return;
-      }
-
-      // Find interactive element - either the element itself or its closest interactive parent
-      let interactiveEl: HTMLElement | null = null;
-      if (isInteractiveElement(elementUnderCursor)) {
-        interactiveEl = elementUnderCursor;
-      } else {
-        interactiveEl = findInteractiveParent(elementUnderCursor);
-      }
-
-      if (interactiveEl) {
-        hoveredElementRef.current = interactiveEl;
-        const rect = interactiveEl.getBoundingClientRect();
-        overlay.style.left = `${rect.left - 2}px`;
-        overlay.style.top = `${rect.top - 2}px`;
-        overlay.style.width = `${rect.width + 4}px`;
-        overlay.style.height = `${rect.height + 4}px`;
-        overlay.style.display = 'block';
-      } else {
-        hoveredElementRef.current = null;
-        overlay.style.display = 'none';
-      }
+      isDrawingRef.current = true;
+      drawStartRef.current = { x: e.clientX, y: e.clientY };
     };
 
-    const handleClick = (e: MouseEvent) => {
-      // Hide overlay to get element under cursor
-      overlay.style.display = 'none';
-      const elementUnderCursor = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
-      overlay.style.display = hoveredElementRef.current ? 'block' : 'none';
-
-      if (!elementUnderCursor) return;
-
-      // Skip if inside feedback widget
-      if (elementUnderCursor.closest('[data-feedback-widget]')) {
+    const handleCanvasMouseMove = (e: MouseEvent) => {
+      if (!isDrawingRef.current || !drawStartRef.current || !canvasCtxRef.current || !canvasRef.current) {
         return;
       }
 
-      // Skip selection badges
-      if (elementUnderCursor.classList.contains('feedback-selection-badge')) {
+      const ctx = canvasCtxRef.current;
+      const canvas = canvasRef.current;
+
+      // Redraw all completed rectangles
+      canvasUtils.redrawRectangles(ctx, canvas, drawnRectangles);
+
+      // Draw current active rectangle
+      const { x, y, width, height } = canvasUtils.normalizeRect(
+        drawStartRef.current.x,
+        drawStartRef.current.y,
+        e.clientX,
+        e.clientY
+      );
+      canvasUtils.drawRectangle(ctx, x, y, width, height, true);
+    };
+
+    const handleCanvasMouseUp = async (e: MouseEvent) => {
+      if (!isDrawingRef.current || !drawStartRef.current) {
         return;
       }
 
-      // Find the interactive element
-      let interactiveEl: HTMLElement | null = null;
-      if (isInteractiveElement(elementUnderCursor)) {
-        interactiveEl = elementUnderCursor;
-      } else {
-        interactiveEl = findInteractiveParent(elementUnderCursor);
-      }
+      isDrawingRef.current = false;
 
-      if (!interactiveEl) return;
+      const { x, y, width, height } = canvasUtils.normalizeRect(
+        drawStartRef.current.x,
+        drawStartRef.current.y,
+        e.clientX,
+        e.clientY
+      );
 
-      // Prevent default action (e.g., navigating a link)
-      e.preventDefault();
-      e.stopPropagation();
+      drawStartRef.current = null;
 
-      const selector = interactiveEl.id
-        ? `#${CSS.escape(interactiveEl.id)}`
-        : createSelectedElementData(interactiveEl, 0).selector;
-
-      // Check if already selected (using selector as key)
-      const existingIndex = selectedElements.findIndex(el => el.selector === selector);
-
-      if (existingIndex !== -1) {
-        // Deselect - remove from array
-        setSelectedElements(prev => {
-          const newElements = prev.filter(el => el.selector !== selector);
-          // Re-number remaining elements
-          return newElements.map((el, idx) => ({ ...el, id: idx + 1 }));
-        });
-        // Remove badge
-        const badge = selectionBadgesRef.current.get(selector);
-        if (badge) {
-          badge.remove();
-          selectionBadgesRef.current.delete(selector);
+      // Validate minimum size
+      if (width < 10 || height < 10) {
+        showWarning('Selection too small (minimum 10x10 pixels)');
+        // Redraw without the invalid rectangle
+        if (canvasCtxRef.current && canvasRef.current) {
+          canvasUtils.redrawRectangles(canvasCtxRef.current, canvasRef.current, drawnRectangles);
         }
-        // Update remaining badge numbers
-        setTimeout(() => {
-          let badgeNum = 1;
-          selectionBadgesRef.current.forEach((b) => {
-            b.textContent = String(badgeNum);
-            b.setAttribute('data-selection-badge', String(badgeNum));
-            badgeNum++;
-          });
-        }, 0);
-      } else {
-        // Select - add to array if under limit
-        if (selectedElements.length >= MAX_SELECTED_ELEMENTS) {
-          showWarning(`Maximum ${MAX_SELECTED_ELEMENTS} elements can be selected`);
-          return;
+        return;
+      }
+
+      // Check max limit
+      if (drawnRectangles.length >= MAX_SCREENSHOTS) {
+        showWarning(`Maximum ${MAX_SCREENSHOTS} screenshots allowed`);
+        if (canvasCtxRef.current && canvasRef.current) {
+          canvasUtils.redrawRectangles(canvasCtxRef.current, canvasRef.current, drawnRectangles);
         }
-        const newId = selectedElements.length + 1;
-        const elementData = createSelectedElementData(interactiveEl, newId);
-        setSelectedElements(prev => [...prev, elementData]);
-        // Create badge
-        const badge = createSelectionBadge(interactiveEl, newId);
-        selectionBadgesRef.current.set(selector, badge);
+        return;
+      }
+
+      // Create new rectangle
+      const newNumber = drawnRectangles.length + 1;
+      const newRect: DrawnRectangle = {
+        id: `rect-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        x,
+        y,
+        width,
+        height,
+        number: newNumber,
+      };
+
+      // Add to state first (optimistic update)
+      setDrawnRectangles(prev => [...prev, newRect]);
+
+      // Capture screenshot of the region
+      try {
+        // Hide the canvas temporarily so it's not captured in the screenshot
+        if (canvasRef.current) {
+          canvasRef.current.style.visibility = 'hidden';
+        }
+
+        const screenshot = await captureScreenshot(x, y, width, height);
+
+        // Restore canvas visibility
+        if (canvasRef.current) {
+          canvasRef.current.style.visibility = 'visible';
+        }
+
+        setCapturedScreenshots(prev => [...prev, screenshot]);
+      } catch (error) {
+        // Restore canvas visibility on error
+        if (canvasRef.current) {
+          canvasRef.current.style.visibility = 'visible';
+        }
+
+        console.error('Failed to capture screenshot:', error);
+        showWarning('Failed to capture screenshot');
+
+        // Remove the rectangle we optimistically added
+        setDrawnRectangles(prev => prev.filter(r => r.id !== newRect.id));
       }
     };
 
-    // Update badge positions on scroll
-    const handleScroll = () => {
-      updateBadgePositions();
+    // Handle window resize - reinitialize canvas
+    const handleResize = () => {
+      if (canvasRef.current && canvasCtxRef.current) {
+        canvasUtils.initCanvas(canvasRef.current);
+        canvasCtxRef.current = canvasRef.current.getContext('2d');
+        if (canvasCtxRef.current) {
+          canvasUtils.redrawRectangles(canvasCtxRef.current, canvasRef.current, drawnRectangles);
+        }
+      }
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('click', handleClick, true); // Use capture phase
-    window.addEventListener('scroll', handleScroll, true);
-    window.addEventListener('resize', updateBadgePositions);
+    // Add event listeners
+    canvas.addEventListener('mousedown', handleCanvasMouseDown);
+    document.addEventListener('mousemove', handleCanvasMouseMove);
+    document.addEventListener('mouseup', handleCanvasMouseUp);
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('click', handleClick, true);
-      window.removeEventListener('scroll', handleScroll, true);
-      window.removeEventListener('resize', updateBadgePositions);
+      canvas.removeEventListener('mousedown', handleCanvasMouseDown);
+      document.removeEventListener('mousemove', handleCanvasMouseMove);
+      document.removeEventListener('mouseup', handleCanvasMouseUp);
+      window.removeEventListener('resize', handleResize);
     };
-  }, [isSelectionMode, selectedElements, createSelectionBadge, updateBadgePositions, showWarning]);
+  }, [isSelectionMode, drawnRectangles, showWarning]);
 
   // Close form handler
   const handleClose = useCallback(() => {
@@ -532,11 +468,21 @@ export function FeedbackWidget({
     setIsNetworkError(false);
 
     const metadata = collectMetadata();
+
+    // Include screenshot blob URLs in the submission (actual upload happens in future story)
+    const screenshotData = capturedScreenshots.map(s => ({
+      blobUrl: s.blobUrl,
+      region: s.region,
+      capturedAt: s.capturedAt,
+      sizeBytes: s.sizeBytes,
+    }));
+
     const result: SubmitFeedbackResult = await submitFeedback({
       app_id: effectiveAppId,
       type: feedbackType,
       message: feedbackMessage.trim(),
-      elements: selectedElements.length > 0 ? selectedElements : undefined,
+      // Include screenshots as elements for now (will be replaced with proper screenshot handling)
+      elements: screenshotData.length > 0 ? screenshotData as unknown as undefined : undefined,
       metadata,
     });
 
@@ -545,8 +491,11 @@ export function FeedbackWidget({
       // Reset form fields
       setFeedbackMessage('');
       setFeedbackType('general');
-      setSelectedElements([]);
-      setIsElementListExpanded(false);
+      // Release screenshot blob URLs
+      capturedScreenshots.forEach(screenshot => releaseScreenshot(screenshot));
+      setCapturedScreenshots([]);
+      setDrawnRectangles([]);
+      setIsScreenshotListExpanded(false);
       // Auto-collapse after 2 seconds
       autoCloseTimerRef.current = setTimeout(() => {
         setIsExpanded(false);
@@ -557,7 +506,7 @@ export function FeedbackWidget({
       setErrorMessage(result.error || 'Something went wrong. Please try again.');
       setIsNetworkError(result.isNetworkError || false);
     }
-  }, [feedbackType, feedbackMessage, effectiveAppId, collectMetadata, selectedElements]);
+  }, [feedbackType, feedbackMessage, effectiveAppId, collectMetadata, capturedScreenshots]);
 
   // Retry handler for error state - actually retries submission
   const handleRetry = useCallback(() => {
@@ -565,24 +514,33 @@ export function FeedbackWidget({
     handleSubmit();
   }, [handleSubmit]);
 
-  // Remove an element from selection by index
-  const handleRemoveElement = useCallback((index: number) => {
-    setSelectedElements(prev => {
-      const newElements = prev.filter((_, i) => i !== index);
-      // Re-number remaining elements
-      return newElements.map((el, idx) => ({ ...el, id: idx + 1 }));
+  // Remove a screenshot from selection by index
+  const handleRemoveScreenshot = useCallback((index: number) => {
+    setCapturedScreenshots(prev => {
+      const removed = prev[index];
+      if (removed) {
+        releaseScreenshot(removed);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+    setDrawnRectangles(prev => {
+      const newRects = prev.filter((_, i) => i !== index);
+      // Re-number remaining rectangles
+      return newRects.map((rect, idx) => ({ ...rect, number: idx + 1 }));
     });
   }, []);
 
-  // Clear all selected elements
-  const handleClearAllElements = useCallback(() => {
-    setSelectedElements([]);
-    setIsElementListExpanded(false);
-  }, []);
+  // Clear all screenshots
+  const handleClearAllScreenshots = useCallback(() => {
+    capturedScreenshots.forEach(screenshot => releaseScreenshot(screenshot));
+    setCapturedScreenshots([]);
+    setDrawnRectangles([]);
+    setIsScreenshotListExpanded(false);
+  }, [capturedScreenshots]);
 
-  // Toggle element list expansion
-  const handleToggleElementList = useCallback(() => {
-    setIsElementListExpanded(prev => !prev);
+  // Toggle screenshot list expansion
+  const handleToggleScreenshotList = useCallback(() => {
+    setIsScreenshotListExpanded(prev => !prev);
   }, []);
 
   // Enter selection mode handler
@@ -595,11 +553,10 @@ export function FeedbackWidget({
   const handleExitSelectionMode = useCallback(() => {
     setIsSelectionMode(false);
     setIsExpanded(true); // Re-expand form when exiting selection mode
-    // Clean up selection badges (they'll be recreated if user re-enters selection mode)
-    selectionBadgesRef.current.forEach(badge => badge.remove());
-    selectionBadgesRef.current.clear();
     // Clear warning
     setSelectionWarning(null);
+    // Clear drawn rectangles (screenshots are kept)
+    setDrawnRectangles([]);
   }, []);
 
   // Render Shadow DOM content
@@ -624,10 +581,12 @@ export function FeedbackWidget({
     const positionStyle = `left: ${currentPosition.x}px; top: ${currentPosition.y}px;`;
 
     // Selection mode overlay (separate from widget)
-    const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(selectedElements.length, selectionWarning) : '';
+    const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : '';
 
     // Form content (always rendered, visibility controlled by CSS)
-    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, selectedElements, isElementListExpanded, isNetworkError);
+    // Note: For now, we pass empty selectedElements array since we're using screenshots
+    // The screenshot UI will be added in STORY-020
+    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, [], false, isNetworkError);
 
     // Check if morph container already exists - if so, just update style/class
     let morphContainer = morphContainerRef.current;
@@ -677,9 +636,23 @@ export function FeedbackWidget({
         // Remove overlay
         existingOverlay.remove();
       } else if (isSelectionMode && existingOverlay) {
-        // Update overlay content - can't use outerHTML in shadow DOM, so remove and re-add
-        existingOverlay.remove();
-        morphContainer.insertAdjacentHTML('beforebegin', selectionModeOverlay);
+        // Update just the counter text without destroying the canvas
+        const counter = existingOverlay.querySelector('.selection-mode-counter');
+        if (counter) {
+          counter.textContent = `${capturedScreenshots.length}/5 captured`;
+        }
+        // Update warning if present
+        const existingWarning = existingOverlay.querySelector('.selection-mode-warning');
+        if (selectionWarning && !existingWarning) {
+          const hint = existingOverlay.querySelector('.selection-mode-hint');
+          if (hint) {
+            hint.insertAdjacentHTML('beforebegin', `<div class="selection-mode-warning">${selectionWarning}</div>`);
+          }
+        } else if (!selectionWarning && existingWarning) {
+          existingWarning.remove();
+        } else if (selectionWarning && existingWarning) {
+          existingWarning.textContent = selectionWarning;
+        }
       }
     } else {
       // Initial render - create the full structure
@@ -799,23 +772,23 @@ export function FeedbackWidget({
       selectOnScreenButton.addEventListener('click', handleEnterSelectionMode);
     }
 
-    // Element list event listeners
-    const elementListBadge = shadowRoot.querySelector('.element-list-badge');
-    const clearAllButton = shadowRoot.querySelector('.element-list-clear-all');
-    const removeButtons = shadowRoot.querySelectorAll('.element-item-remove');
+    // Screenshot list event listeners (will be used when ScreenshotList component is added in STORY-020)
+    const screenshotListBadge = shadowRoot.querySelector('.screenshot-list-badge');
+    const clearAllScreenshotsButton = shadowRoot.querySelector('.screenshot-list-clear-all');
+    const removeScreenshotButtons = shadowRoot.querySelectorAll('.screenshot-item-remove');
 
-    if (elementListBadge) {
-      elementListBadge.addEventListener('click', handleToggleElementList);
+    if (screenshotListBadge) {
+      screenshotListBadge.addEventListener('click', handleToggleScreenshotList);
     }
 
-    if (clearAllButton) {
-      clearAllButton.addEventListener('click', handleClearAllElements);
+    if (clearAllScreenshotsButton) {
+      clearAllScreenshotsButton.addEventListener('click', handleClearAllScreenshots);
     }
 
-    removeButtons.forEach((btn) => {
+    removeScreenshotButtons.forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const index = parseInt((e.currentTarget as HTMLElement).getAttribute('data-remove-index') || '0', 10);
-        handleRemoveElement(index);
+        handleRemoveScreenshot(index);
       });
     });
 
@@ -829,6 +802,7 @@ export function FeedbackWidget({
     effectivePosition,
     isExpanded,
     widgetPosition,
+    widgetState.corner,
     isDragging,
     isClient,
     handleMouseDown,
@@ -837,17 +811,17 @@ export function FeedbackWidget({
     handleRetry,
     handleEnterSelectionMode,
     handleExitSelectionMode,
-    handleToggleElementList,
-    handleClearAllElements,
-    handleRemoveElement,
+    handleToggleScreenshotList,
+    handleClearAllScreenshots,
+    handleRemoveScreenshot,
     feedbackType,
     feedbackMessage,
     submissionState,
     errorMessage,
     isNetworkError,
     isSelectionMode,
-    selectedElements,
-    isElementListExpanded,
+    capturedScreenshots,
+    isScreenshotListExpanded,
     selectionWarning,
   ]);
 

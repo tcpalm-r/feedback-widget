@@ -1,5 +1,5 @@
-// SelectionMode - Generates selection mode overlay HTML for Shadow DOM
-// This exports functions that return HTML strings since the widget uses Shadow DOM
+// SelectionMode - Canvas-based lasso rectangle drawing for screenshot capture
+// Generates HTML strings for Shadow DOM with crosshair cursor and rectangle drawing
 
 // Crosshair icon SVG (from Lucide)
 const CrosshairIcon = `
@@ -12,7 +12,7 @@ const CrosshairIcon = `
   </svg>
 `;
 
-// X icon SVG for Done button (from Lucide)
+// Check icon SVG for Done button (from Lucide)
 const CheckIcon = `
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <polyline points="20 6 9 17 4 12"></polyline>
@@ -22,6 +22,15 @@ const CheckIcon = `
 export interface SelectionModeState {
   isActive: boolean;
   selectedCount: number;
+}
+
+export interface DrawnRectangle {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  number: number;
 }
 
 /**
@@ -35,14 +44,14 @@ export function getSelectOnScreenButtonHTML(disabled: boolean = false): string {
       ${disabled ? 'disabled' : ''}
     >
       ${CrosshairIcon}
-      <span>Select on Screen</span>
+      <span>Capture Screenshot</span>
     </button>
   `;
 }
 
 /**
- * Generate the selection mode overlay HTML
- * This overlay covers the entire page with a darkened effect
+ * Generate the selection mode overlay HTML with canvas for lasso drawing
+ * This creates a full-viewport transparent canvas with crosshair cursor
  */
 export function getSelectionModeOverlayHTML(selectedCount: number = 0, warning: string | null = null): string {
   const warningHTML = warning ? `
@@ -53,11 +62,12 @@ export function getSelectionModeOverlayHTML(selectedCount: number = 0, warning: 
 
   return `
     <div class="selection-mode-overlay">
+      <canvas class="selection-mode-canvas" id="selection-canvas"></canvas>
       <div class="selection-mode-toolbar">
         <div class="selection-mode-info">
           <span class="selection-mode-icon">${CrosshairIcon}</span>
-          <span class="selection-mode-text">Click elements to select</span>
-          <span class="selection-mode-counter">${selectedCount}/5 selected</span>
+          <span class="selection-mode-text">Draw to capture region</span>
+          <span class="selection-mode-counter">${selectedCount}/5 captured</span>
         </div>
         <div class="selection-mode-actions">
           <button type="button" class="selection-mode-done-button">
@@ -68,15 +78,15 @@ export function getSelectionModeOverlayHTML(selectedCount: number = 0, warning: 
       </div>
       ${warningHTML}
       <div class="selection-mode-hint">
-        Press <kbd>ESC</kbd> to exit selection mode
+        Press <kbd>ESC</kbd> to exit • Drag to select region
       </div>
     </div>
   `;
 }
 
 /**
- * Get selection mode styles
- * Using Sonance brand colors and typography
+ * Get selection mode styles with canvas-based lasso drawing
+ * Using Sonance brand colors (#00A3E1) for selection rectangles
  */
 export function getSelectionModeStyles(): string {
   // Sonance brand colors
@@ -147,23 +157,32 @@ export function getSelectionModeStyles(): string {
       stroke-linejoin: round;
     }
 
-    /* Selection mode overlay */
+    /* Selection mode overlay with canvas */
     .selection-mode-overlay {
       position: fixed;
       inset: 0;
-      background-color: rgba(51, 63, 72, 0.3);
       z-index: 999998;
-      cursor: crosshair;
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
       align-items: center;
       padding-top: 20px;
-      pointer-events: none;
     }
 
-    /* Toolbar at top */
+    /* Full-viewport canvas for lasso drawing */
+    .selection-mode-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+      z-index: 999997;
+    }
+
+    /* Toolbar at top - above canvas */
     .selection-mode-toolbar {
+      position: relative;
+      z-index: 999999;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -266,7 +285,7 @@ export function getSelectionModeStyles(): string {
       stroke-linejoin: round;
     }
 
-    /* ESC hint at bottom */
+    /* ESC hint at bottom - above canvas */
     .selection-mode-hint {
       position: fixed;
       bottom: 20px;
@@ -279,6 +298,7 @@ export function getSelectionModeStyles(): string {
       font-size: 13px;
       animation: selectionHintFadeIn 0.3s ease-out 0.2s both;
       pointer-events: auto;
+      z-index: 999999;
     }
 
     @keyframes selectionHintFadeIn {
@@ -324,7 +344,7 @@ export function getSelectionModeStyles(): string {
       font-weight: 500;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       animation: warningSlideIn 0.2s ease-out;
-      z-index: 999999;
+      z-index: 1000000;
       pointer-events: auto;
     }
 
@@ -338,5 +358,148 @@ export function getSelectionModeStyles(): string {
         transform: translateX(-50%) translateY(0);
       }
     }
+
+    /* Rectangle badges for completed selections */
+    .selection-rectangle-badge {
+      position: fixed;
+      z-index: 999998;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background-color: ${colors.blue};
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
   `;
 }
+
+/**
+ * Canvas drawing utilities for lasso rectangle selection
+ */
+export const canvasUtils = {
+  /**
+   * Initialize canvas to match viewport size
+   */
+  initCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.imageSmoothingEnabled = true;
+    }
+    return ctx;
+  },
+
+  /**
+   * Clear the entire canvas
+   */
+  clearCanvas(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  },
+
+  /**
+   * Draw a rectangle with Sonance blue color
+   * Border: 2px solid #00A3E1
+   * Fill: 20% opacity #00A3E1
+   */
+  drawRectangle(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    isActive: boolean = false
+  ): void {
+    // Fill with 20% opacity
+    ctx.fillStyle = 'rgba(0, 163, 225, 0.2)';
+    ctx.fillRect(x, y, width, height);
+
+    // Stroke with 2px solid border
+    ctx.strokeStyle = '#00A3E1';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, width, height);
+
+    // If active (being drawn), add dashed inner border for visibility
+    if (isActive) {
+      ctx.setLineDash([5, 3]);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 3, y + 3, width - 6, height - 6);
+      ctx.setLineDash([]);
+    }
+  },
+
+  /**
+   * Draw a numbered badge at the top-left corner of a rectangle
+   */
+  drawBadge(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    number: number
+  ): void {
+    const badgeRadius = 12;
+    const badgeX = x + badgeRadius;
+    const badgeY = y + badgeRadius;
+
+    // Badge circle
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
+    ctx.fillStyle = '#00A3E1';
+    ctx.fill();
+
+    // Shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    // Badge number
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '600 12px Montserrat, -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(number), badgeX, badgeY);
+  },
+
+  /**
+   * Redraw all completed rectangles with their badges
+   */
+  redrawRectangles(
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    rectangles: DrawnRectangle[]
+  ): void {
+    canvasUtils.clearCanvas(ctx, canvas);
+    rectangles.forEach((rect) => {
+      canvasUtils.drawRectangle(ctx, rect.x, rect.y, rect.width, rect.height);
+      canvasUtils.drawBadge(ctx, rect.x, rect.y, rect.number);
+    });
+  },
+
+  /**
+   * Normalize rectangle coordinates (handle negative width/height from dragging)
+   */
+  normalizeRect(
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number
+  ): { x: number; y: number; width: number; height: number } {
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    const width = Math.abs(endX - startX);
+    const height = Math.abs(endY - startY);
+    return { x, y, width, height };
+  },
+};
