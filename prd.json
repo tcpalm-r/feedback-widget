@@ -411,7 +411,7 @@
       "id": "STORY-024",
       "title": "Edge case and regression testing",
       "priority": 24,
-      "passes": false,
+      "passes": true,
       "description": "Add comprehensive edge case tests and ensure all regression tests pass for the lasso screenshot feature.",
       "acceptanceCriteria": [
         "Playwright test: drawing very small region (< 10px) shows warning and doesn't capture",

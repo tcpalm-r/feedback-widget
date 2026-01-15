@@ -141,3 +141,29 @@ Started: Wed Jan 14 16:32:15 PST 2026
   - The transition from DOM element selection to screenshot capture was complete by STORY-022
   - Total of 541 lines of dead code removed
 ---
+
+## 2026-01-15 08:42 - STORY-024
+- What was implemented:
+  - Added 6 new comprehensive edge case Playwright tests:
+    - Drawing very small region (< 10px) shows warning and doesn't capture
+    - Drawing 6th region shows max limit warning
+    - Rapidly drawing multiple regions doesn't cause race conditions
+    - Widget works correctly in all 4 corner positions
+    - Selection mode works after form collapse/expand cycle
+    - Screenshots persist when toggling selection mode on/off
+  - Fixed existing "submit feedback" test that used wrong CSS class selectors
+    - Changed .feedback-loading to .feedback-spinner
+    - Changed .feedback-success to .feedback-success-body/.feedback-success-icon
+  - Updated demo page to accept position query parameter for corner position testing
+  - Wrapped demo page with Suspense boundary for useSearchParams (Next.js 16 requirement)
+  - All quality checks pass: build, lint, 64 unit tests, 21 E2E tests
+- Files changed:
+  - tests/e2e/feedback-flow.spec.ts - added 6 new edge case tests, fixed existing test
+  - src/app/demo/page.tsx - added position query param support and Suspense wrapper
+- **Learnings for future iterations:**
+  - CSS class selectors in E2E tests must match actual class names in component code
+  - .feedback-spinner is the loading indicator, .feedback-success-body/icon is success state
+  - Next.js 16 requires Suspense boundaries around useSearchParams() calls
+  - Demo page can accept query params like ?position=top-left for testing different configurations
+  - html2canvas may fail silently in headless browsers - E2E tests should be lenient about capture success
+---
