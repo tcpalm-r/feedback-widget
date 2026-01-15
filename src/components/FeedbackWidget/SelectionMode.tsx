@@ -19,6 +19,31 @@ const CheckIcon = `
   </svg>
 `;
 
+// Image icon SVG for Add Screenshot button (from Lucide)
+const ImageIcon = `
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+    <circle cx="9" cy="9" r="2"></circle>
+    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+  </svg>
+`;
+
+// Upload icon SVG (from Lucide)
+const UploadIcon = `
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+    <polyline points="17 8 12 3 7 8"></polyline>
+    <line x1="12" y1="3" x2="12" y2="15"></line>
+  </svg>
+`;
+
+// Chevron down icon SVG (from Lucide)
+const ChevronDownIcon = `
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <polyline points="6 9 12 15 18 9"></polyline>
+  </svg>
+`;
+
 export interface SelectionModeState {
   isActive: boolean;
   selectedCount: number;
@@ -34,18 +59,43 @@ export interface DrawnRectangle {
 }
 
 /**
- * Generate the "Select on Screen" button HTML for the form
+ * Generate the "Add Screenshot" dropdown button HTML for the form
  */
 export function getSelectOnScreenButtonHTML(disabled: boolean = false): string {
   return `
-    <button
-      type="button"
-      class="feedback-select-button"
-      ${disabled ? 'disabled' : ''}
-    >
-      ${CrosshairIcon}
-      <span>Capture Screenshot</span>
-    </button>
+    <div class="feedback-screenshot-container">
+      <input type="file" id="screenshot-file-input" class="feedback-file-input" accept="image/*" multiple ${disabled ? 'disabled' : ''} />
+      <button
+        type="button"
+        class="feedback-select-button"
+        ${disabled ? 'disabled' : ''}
+      >
+        ${ImageIcon}
+        <span>Add Screenshot</span>
+        ${ChevronDownIcon}
+      </button>
+      <div class="feedback-screenshot-menu">
+        <button type="button" class="feedback-menu-item" data-action="capture">
+          ${CrosshairIcon}
+          <span>Capture Region</span>
+        </button>
+        <button type="button" class="feedback-menu-item" data-action="upload">
+          ${UploadIcon}
+          <span>Upload Image</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Generate the drag-drop zone HTML
+ */
+export function getDragDropZoneHTML(): string {
+  return `
+    <div class="feedback-dropzone" id="screenshot-dropzone">
+      <span>Drop images here</span>
+    </div>
   `;
 }
 
@@ -61,8 +111,8 @@ export function getSelectionModeOverlayHTML(selectedCount: number = 0, warning: 
   ` : '';
 
   return `
+    <canvas class="selection-mode-canvas" id="selection-canvas"></canvas>
     <div class="selection-mode-overlay">
-      <canvas class="selection-mode-canvas" id="selection-canvas"></canvas>
       <div class="selection-mode-toolbar">
         <div class="selection-mode-info">
           <span class="selection-mode-icon">${CrosshairIcon}</span>
@@ -157,6 +207,94 @@ export function getSelectionModeStyles(): string {
       stroke-linejoin: round;
     }
 
+    /* Dropdown container */
+    .feedback-screenshot-container {
+      position: relative;
+      width: 100%;
+    }
+
+    /* Hidden file input */
+    .feedback-file-input {
+      display: none;
+    }
+
+    /* Dropdown menu */
+    .feedback-screenshot-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid ${colors.lightGray};
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: none;
+      z-index: 10;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+
+    .feedback-screenshot-menu.open {
+      display: block;
+    }
+
+    /* Menu items */
+    .feedback-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: ${colors.charcoal};
+      text-align: left;
+      transition: background 0.15s ease;
+    }
+
+    .feedback-menu-item:hover {
+      background: ${colors.gray100};
+    }
+
+    .feedback-menu-item:first-child {
+      border-radius: 7px 7px 0 0;
+    }
+
+    .feedback-menu-item:last-child {
+      border-radius: 0 0 7px 7px;
+    }
+
+    .feedback-menu-item svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Drag-drop zone */
+    .feedback-dropzone {
+      border: 2px dashed ${colors.lightGray};
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      color: ${colors.gray500};
+      font-size: 13px;
+      transition: all 0.15s ease;
+      margin-top: 8px;
+    }
+
+    .feedback-dropzone.drag-over {
+      border-color: ${colors.blue};
+      background: rgba(0, 163, 225, 0.05);
+      color: ${colors.blue};
+    }
+
     /* Selection mode overlay with canvas */
     .selection-mode-overlay {
       position: fixed;
@@ -167,6 +305,7 @@ export function getSelectionModeStyles(): string {
       justify-content: flex-start;
       align-items: center;
       padding-top: 20px;
+      pointer-events: none;  /* Allow mouse events to pass through to canvas */
     }
 
     /* Full-viewport canvas for lasso drawing */
@@ -177,12 +316,13 @@ export function getSelectionModeStyles(): string {
       height: 100vh;
       cursor: crosshair;
       z-index: 999997;
+      pointer-events: auto;  /* Explicitly receive mouse events */
     }
 
     /* Toolbar at top - above canvas */
     .selection-mode-toolbar {
       position: relative;
-      z-index: 999999;
+      z-index: 1000000;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -298,7 +438,7 @@ export function getSelectionModeStyles(): string {
       font-size: 13px;
       animation: selectionHintFadeIn 0.3s ease-out 0.2s both;
       pointer-events: auto;
-      z-index: 999999;
+      z-index: 1000000;
     }
 
     @keyframes selectionHintFadeIn {

@@ -1,7 +1,7 @@
 // FeedbackForm - Generates form HTML for Shadow DOM
 // This exports functions that return HTML strings since the widget uses Shadow DOM
 
-import { getSelectOnScreenButtonHTML } from './SelectionMode';
+import { getSelectOnScreenButtonHTML, getDragDropZoneHTML } from './SelectionMode';
 import { getScreenshotListBadgeHTML } from './ScreenshotList';
 import { CapturedScreenshot } from './utils/screenshot';
 
@@ -54,12 +54,12 @@ export interface FeedbackFormData {
 
 export const feedbackTypeOptions: { value: FeedbackType; label: string }[] = [
   { value: 'bug', label: 'Bug' },
-  { value: 'feature', label: 'Feature' },
+  { value: 'feature', label: 'Feature (Suggestion)' },
   { value: 'general', label: 'General' },
 ];
 
 export function getFeedbackFormHTML(
-  selectedType: FeedbackType = 'general',
+  selectedType: FeedbackType = 'bug',
   message: string = '',
   submissionState: SubmissionState = 'idle',
   errorMessage: string = '',
@@ -123,7 +123,6 @@ export function getFeedbackFormHTML(
         ` : ''}
 
         <div class="feedback-form-field">
-          <label for="feedback-type" class="feedback-label">Type</label>
           <select id="feedback-type" name="type" class="feedback-select" ${isDisabled ? 'disabled' : ''}>
             ${typeOptions}
           </select>
@@ -142,6 +141,8 @@ export function getFeedbackFormHTML(
         </div>
 
         ${getSelectOnScreenButtonHTML(isDisabled)}
+
+        ${getDragDropZoneHTML()}
 
         ${getScreenshotListBadgeHTML(capturedScreenshots, isScreenshotListExpanded)}
 

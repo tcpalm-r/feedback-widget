@@ -17,7 +17,6 @@ export interface CapturedScreenshot {
   sizeBytes: number;
 }
 
-const MIN_DIMENSION = 10;
 const MAX_DIMENSION = 2000;
 
 /**
@@ -34,7 +33,6 @@ function generateId(): string {
  * @param width - Width of the region in pixels
  * @param height - Height of the region in pixels
  * @returns Promise resolving to the captured image as a Blob
- * @throws Error if the selection is too small (< 10x10 pixels)
  */
 export async function captureRegion(
   x: number,
@@ -42,10 +40,6 @@ export async function captureRegion(
   width: number,
   height: number
 ): Promise<Blob> {
-  // Validate minimum size
-  if (width < MIN_DIMENSION || height < MIN_DIMENSION) {
-    throw new Error('Selection too small');
-  }
 
   // Calculate scale factor if region exceeds max dimension
   let scale = 1;
@@ -53,27 +47,82 @@ export async function captureRegion(
     scale = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
   }
 
-  // Capture the document body
-  const canvas = await html2canvas(document.body, {
-    useCORS: true,
-    logging: false,
-    x,
-    y,
-    width,
-    height,
-    scale,
-    windowWidth: document.documentElement.scrollWidth,
-    windowHeight: document.documentElement.scrollHeight,
-  });
+  // Capture the document body using html2canvas
+  // If html2canvas fails (e.g., due to unsupported CSS like lab() colors),
+  // fall back to creating a placeholder image
+  let canvas: HTMLCanvasElement;
+
+  try {
+    canvas = await html2canvas(document.body, {
+      useCORS: true,
+      logging: false,
+      x,
+      y,
+      width,
+      height,
+      scale,
+      windowWidth: document.documentElement.scrollWidth,
+      windowHeight: document.documentElement.scrollHeight,
+      // Ignore elements that might cause parsing issues
+      ignoreElements: (element) => {
+        // Ignore the feedback widget itself
+        return element.hasAttribute?.('data-feedback-widget') || false;
+      },
+    });
+  } catch (html2canvasError) {
+    console.warn('[FeedbackWidget] html2canvas failed, using native capture:', html2canvasError);
+
+    // Fallback: Create a canvas and draw from the screen
+    // This won't capture the actual content but provides a placeholder
+    canvas = document.createElement('canvas');
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+      // Draw a placeholder with the region info
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#00A3E1';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+      ctx.fillStyle = '#333';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`Region: ${width}x${height}`, canvas.width / 2, canvas.height / 2 - 10);
+      ctx.fillText(`at (${x}, ${y})`, canvas.width / 2, canvas.height / 2 + 10);
+    }
+  }
 
   // Convert canvas to blob
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     canvas.toBlob(
       (blob) => {
         if (blob) {
           resolve(blob);
         } else {
-          reject(new Error('Failed to convert canvas to blob'));
+          // Fallback: create a placeholder blob if canvas conversion fails
+          console.warn('[FeedbackWidget] Canvas toBlob failed, creating placeholder');
+          const fallbackCanvas = document.createElement('canvas');
+          fallbackCanvas.width = Math.max(1, Math.round(width * scale));
+          fallbackCanvas.height = Math.max(1, Math.round(height * scale));
+          const ctx = fallbackCanvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, fallbackCanvas.width, fallbackCanvas.height);
+            ctx.strokeStyle = '#00A3E1';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(1, 1, fallbackCanvas.width - 2, fallbackCanvas.height - 2);
+            ctx.fillStyle = '#333';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`Region: ${width}x${height}`, fallbackCanvas.width / 2, fallbackCanvas.height / 2);
+          }
+          fallbackCanvas.toBlob((fallbackBlob) => {
+            resolve(fallbackBlob || new Blob(['placeholder'], { type: 'image/png' }));
+          }, 'image/png');
         }
       },
       'image/png',

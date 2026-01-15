@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
 import { getWidgetStyles } from './styles';
 import { getFeedbackFormHTML, FeedbackType, SubmissionState } from './FeedbackForm';
 import { getSelectionModeOverlayHTML, canvasUtils, DrawnRectangle } from './SelectionMode';
@@ -100,7 +100,7 @@ export function FeedbackWidget({
   const isSelectionModeRef = useRef(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const isDraggingRef = useRef(false);
-  const [feedbackType, setFeedbackType] = useState<FeedbackType>('general');
+  const [feedbackType, setFeedbackType] = useState<FeedbackType>('bug');
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -280,150 +280,145 @@ export function FeedbackWidget({
       return;
     }
 
-    // Get canvas element from shadow DOM
-    const canvas = shadowRootRef.current.querySelector('.selection-mode-canvas') as HTMLCanvasElement | null;
-    if (!canvas) return;
+    // Store cleanup functions
+    let cleanupFns: (() => void)[] = [];
 
-    canvasRef.current = canvas;
-    const ctx = canvasUtils.initCanvas(canvas);
-    if (!ctx) return;
-    canvasCtxRef.current = ctx;
+    // Use requestAnimationFrame to ensure DOM has been updated after render
+    const frameId = requestAnimationFrame(() => {
+      if (!shadowRootRef.current) return;
 
-    // Redraw existing rectangles
-    canvasUtils.redrawRectangles(ctx, canvas, drawnRectangles);
+      // Get canvas element from shadow DOM
+      const canvas = shadowRootRef.current.querySelector('.selection-mode-canvas') as HTMLCanvasElement | null;
+      console.log('[FeedbackWidget] RAF - Canvas found:', !!canvas);
+      if (!canvas) return;
 
-    const handleCanvasMouseDown = (e: MouseEvent) => {
-      // Don't start drawing if clicking on toolbar or hint
-      const target = e.target as HTMLElement;
-      if (target.closest('.selection-mode-toolbar') || target.closest('.selection-mode-hint')) {
-        return;
-      }
+      canvasRef.current = canvas;
+      const ctx = canvasUtils.initCanvas(canvas);
+      console.log('[FeedbackWidget] Canvas context:', !!ctx, 'size:', canvas.width, 'x', canvas.height);
+      if (!ctx) return;
+      canvasCtxRef.current = ctx;
 
-      isDrawingRef.current = true;
-      drawStartRef.current = { x: e.clientX, y: e.clientY };
-    };
-
-    const handleCanvasMouseMove = (e: MouseEvent) => {
-      if (!isDrawingRef.current || !drawStartRef.current || !canvasCtxRef.current || !canvasRef.current) {
-        return;
-      }
-
-      const ctx = canvasCtxRef.current;
-      const canvas = canvasRef.current;
-
-      // Redraw all completed rectangles
+      // Redraw existing rectangles
       canvasUtils.redrawRectangles(ctx, canvas, drawnRectangles);
 
-      // Draw current active rectangle
-      const { x, y, width, height } = canvasUtils.normalizeRect(
-        drawStartRef.current.x,
-        drawStartRef.current.y,
-        e.clientX,
-        e.clientY
-      );
-      canvasUtils.drawRectangle(ctx, x, y, width, height, true);
-    };
-
-    const handleCanvasMouseUp = async (e: MouseEvent) => {
-      if (!isDrawingRef.current || !drawStartRef.current) {
-        return;
-      }
-
-      isDrawingRef.current = false;
-
-      const { x, y, width, height } = canvasUtils.normalizeRect(
-        drawStartRef.current.x,
-        drawStartRef.current.y,
-        e.clientX,
-        e.clientY
-      );
-
-      drawStartRef.current = null;
-
-      // Validate minimum size
-      if (width < 10 || height < 10) {
-        showWarning('Selection too small (minimum 10x10 pixels)');
-        // Redraw without the invalid rectangle
-        if (canvasCtxRef.current && canvasRef.current) {
-          canvasUtils.redrawRectangles(canvasCtxRef.current, canvasRef.current, drawnRectangles);
-        }
-        return;
-      }
-
-      // Check max limit
-      if (drawnRectangles.length >= MAX_SCREENSHOTS) {
-        showWarning(`Maximum ${MAX_SCREENSHOTS} screenshots allowed`);
-        if (canvasCtxRef.current && canvasRef.current) {
-          canvasUtils.redrawRectangles(canvasCtxRef.current, canvasRef.current, drawnRectangles);
-        }
-        return;
-      }
-
-      // Create new rectangle
-      const newNumber = drawnRectangles.length + 1;
-      const newRect: DrawnRectangle = {
-        id: `rect-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        x,
-        y,
-        width,
-        height,
-        number: newNumber,
+      const handleCanvasMouseDown = (e: MouseEvent) => {
+        console.log('[FeedbackWidget] Canvas mousedown!', e.clientX, e.clientY);
+        isDrawingRef.current = true;
+        drawStartRef.current = { x: e.clientX, y: e.clientY };
       };
 
-      // Add to state first (optimistic update)
-      setDrawnRectangles(prev => [...prev, newRect]);
-
-      // Capture screenshot of the region
-      try {
-        // Hide the canvas temporarily so it's not captured in the screenshot
-        if (canvasRef.current) {
-          canvasRef.current.style.visibility = 'hidden';
+      const handleCanvasMouseMove = (e: MouseEvent) => {
+        if (!isDrawingRef.current || !drawStartRef.current || !canvasCtxRef.current || !canvasRef.current) {
+          return;
         }
 
-        const screenshot = await captureScreenshot(x, y, width, height);
+        const ctx = canvasCtxRef.current;
+        const cvs = canvasRef.current;
 
-        // Restore canvas visibility
-        if (canvasRef.current) {
-          canvasRef.current.style.visibility = 'visible';
+        // Redraw all completed rectangles
+        canvasUtils.redrawRectangles(ctx, cvs, drawnRectangles);
+
+        // Draw current active rectangle
+        const { x, y, width, height } = canvasUtils.normalizeRect(
+          drawStartRef.current.x,
+          drawStartRef.current.y,
+          e.clientX,
+          e.clientY
+        );
+        canvasUtils.drawRectangle(ctx, x, y, width, height, true);
+      };
+
+      const handleCanvasMouseUp = async (e: MouseEvent) => {
+        if (!isDrawingRef.current || !drawStartRef.current) {
+          return;
         }
 
-        setCapturedScreenshots(prev => [...prev, screenshot]);
-      } catch (error) {
-        // Restore canvas visibility on error
-        if (canvasRef.current) {
-          canvasRef.current.style.visibility = 'visible';
+        isDrawingRef.current = false;
+
+        const { x, y, width, height } = canvasUtils.normalizeRect(
+          drawStartRef.current.x,
+          drawStartRef.current.y,
+          e.clientX,
+          e.clientY
+        );
+
+        drawStartRef.current = null;
+
+        // Check max limit
+        if (drawnRectangles.length >= MAX_SCREENSHOTS) {
+          showWarning(`Maximum ${MAX_SCREENSHOTS} screenshots allowed`);
+          if (canvasCtxRef.current && canvasRef.current) {
+            canvasUtils.redrawRectangles(canvasCtxRef.current, canvasRef.current, drawnRectangles);
+          }
+          return;
         }
 
-        console.error('Failed to capture screenshot:', error);
-        showWarning('Failed to capture screenshot');
+        // Create new rectangle
+        const newNumber = drawnRectangles.length + 1;
+        const newRect: DrawnRectangle = {
+          id: `rect-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          x,
+          y,
+          width,
+          height,
+          number: newNumber,
+        };
 
-        // Remove the rectangle we optimistically added
-        setDrawnRectangles(prev => prev.filter(r => r.id !== newRect.id));
-      }
-    };
+        // Add to state first (optimistic update)
+        setDrawnRectangles(prev => [...prev, newRect]);
 
-    // Handle window resize - reinitialize canvas
-    const handleResize = () => {
-      if (canvasRef.current && canvasCtxRef.current) {
-        canvasUtils.initCanvas(canvasRef.current);
-        canvasCtxRef.current = canvasRef.current.getContext('2d');
-        if (canvasCtxRef.current) {
-          canvasUtils.redrawRectangles(canvasCtxRef.current, canvasRef.current, drawnRectangles);
+        // Capture screenshot of the region
+        try {
+          if (canvasRef.current) {
+            canvasRef.current.style.visibility = 'hidden';
+          }
+
+          const screenshot = await captureScreenshot(x, y, width, height);
+
+          if (canvasRef.current) {
+            canvasRef.current.style.visibility = 'visible';
+          }
+
+          setCapturedScreenshots(prev => [...prev, screenshot]);
+        } catch (error) {
+          if (canvasRef.current) {
+            canvasRef.current.style.visibility = 'visible';
+          }
+
+          console.error('Failed to capture screenshot:', error);
+          showWarning('Failed to capture screenshot');
+          setDrawnRectangles(prev => prev.filter(r => r.id !== newRect.id));
         }
-      }
-    };
+      };
 
-    // Add event listeners
-    canvas.addEventListener('mousedown', handleCanvasMouseDown);
-    document.addEventListener('mousemove', handleCanvasMouseMove);
-    document.addEventListener('mouseup', handleCanvasMouseUp);
-    window.addEventListener('resize', handleResize);
+      const handleResize = () => {
+        if (canvasRef.current && canvasCtxRef.current) {
+          canvasUtils.initCanvas(canvasRef.current);
+          canvasCtxRef.current = canvasRef.current.getContext('2d');
+          if (canvasCtxRef.current) {
+            canvasUtils.redrawRectangles(canvasCtxRef.current, canvasRef.current, drawnRectangles);
+          }
+        }
+      };
+
+      // Add event listeners
+      canvas.addEventListener('mousedown', handleCanvasMouseDown);
+      document.addEventListener('mousemove', handleCanvasMouseMove);
+      document.addEventListener('mouseup', handleCanvasMouseUp);
+      window.addEventListener('resize', handleResize);
+
+      // Store cleanup
+      cleanupFns.push(() => {
+        canvas.removeEventListener('mousedown', handleCanvasMouseDown);
+        document.removeEventListener('mousemove', handleCanvasMouseMove);
+        document.removeEventListener('mouseup', handleCanvasMouseUp);
+        window.removeEventListener('resize', handleResize);
+      });
+    });
 
     return () => {
-      canvas.removeEventListener('mousedown', handleCanvasMouseDown);
-      document.removeEventListener('mousemove', handleCanvasMouseMove);
-      document.removeEventListener('mouseup', handleCanvasMouseUp);
-      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(frameId);
+      cleanupFns.forEach(fn => fn());
     };
   }, [isSelectionMode, drawnRectangles, showWarning]);
 
@@ -625,6 +620,31 @@ export function FeedbackWidget({
     setDrawnRectangles([]);
   }, []);
 
+  // Handle file upload (from file picker or drag-drop)
+  const handleFileUpload = useCallback((files: FileList | null | undefined) => {
+    if (!files) return;
+
+    let addedCount = 0;
+    for (const file of Array.from(files)) {
+      if (capturedScreenshots.length + addedCount >= MAX_SCREENSHOTS) {
+        showWarning(`Maximum ${MAX_SCREENSHOTS} screenshots allowed`);
+        break;
+      }
+      if (!file.type.startsWith('image/')) continue;
+
+      const blobUrl = URL.createObjectURL(file);
+      const screenshot: CapturedScreenshot = {
+        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        blobUrl,
+        region: { x: 0, y: 0, width: 0, height: 0 },
+        capturedAt: Date.now(),
+        sizeBytes: file.size,
+      };
+      setCapturedScreenshots(prev => [...prev, screenshot]);
+      addedCount++;
+    }
+  }, [capturedScreenshots.length, showWarning]);
+
   // Render Shadow DOM content
   useEffect(() => {
     if (!hostRef.current || !isClient) return;
@@ -693,9 +713,12 @@ export function FeedbackWidget({
 
       // Update selection mode overlay
       const existingOverlay = shadowRoot.querySelector('.selection-mode-overlay');
+      console.log('[FeedbackWidget] isSelectionMode:', isSelectionMode, 'existingOverlay:', !!existingOverlay);
       if (isSelectionMode && !existingOverlay) {
-        // Add overlay
+        // Add overlay and canvas
+        console.log('[FeedbackWidget] Inserting overlay HTML:', selectionModeOverlay.substring(0, 200));
         morphContainer.insertAdjacentHTML('beforebegin', selectionModeOverlay);
+        console.log('[FeedbackWidget] After insert - canvas:', !!shadowRoot.querySelector('.selection-mode-canvas'));
       } else if (!isSelectionMode && existingOverlay) {
         // Remove overlay
         existingOverlay.remove();
@@ -832,9 +855,71 @@ export function FeedbackWidget({
       retryButton.addEventListener('click', handleRetry);
     }
 
-    if (selectOnScreenButton) {
-      selectOnScreenButton.addEventListener('click', handleEnterSelectionMode);
+    // Screenshot dropdown menu handlers
+    const screenshotMenu = shadowRoot.querySelector('.feedback-screenshot-menu');
+    const fileInput = shadowRoot.querySelector('#screenshot-file-input') as HTMLInputElement | null;
+    const captureMenuItem = shadowRoot.querySelector('[data-action="capture"]');
+    const uploadMenuItem = shadowRoot.querySelector('[data-action="upload"]');
+    const dropzone = shadowRoot.querySelector('#screenshot-dropzone');
+
+    // Toggle dropdown menu
+    if (selectOnScreenButton && screenshotMenu) {
+      selectOnScreenButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        screenshotMenu.classList.toggle('open');
+      });
     }
+
+    // Capture region menu item
+    if (captureMenuItem && screenshotMenu) {
+      captureMenuItem.addEventListener('click', () => {
+        screenshotMenu.classList.remove('open');
+        handleEnterSelectionMode();
+      });
+    }
+
+    // Upload image menu item
+    if (uploadMenuItem && fileInput && screenshotMenu) {
+      uploadMenuItem.addEventListener('click', () => {
+        screenshotMenu.classList.remove('open');
+        fileInput.click();
+      });
+    }
+
+    // File input change handler
+    if (fileInput) {
+      fileInput.addEventListener('change', (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        handleFileUpload(files);
+        fileInput.value = ''; // Reset for re-uploads
+      });
+    }
+
+    // Drag-drop handlers
+    if (dropzone) {
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('drag-over');
+      });
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('drag-over');
+      });
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        const files = (e as DragEvent).dataTransfer?.files;
+        handleFileUpload(files);
+      });
+    }
+
+    // Close dropdown when clicking outside
+    const handleDocumentClick = (e: MouseEvent) => {
+      const container = shadowRoot.querySelector('.feedback-screenshot-container');
+      if (container && !container.contains(e.target as Node)) {
+        screenshotMenu?.classList.remove('open');
+      }
+    };
+    document.addEventListener('click', handleDocumentClick);
 
     // Screenshot list event listeners
     const screenshotListBadge = shadowRoot.querySelector('.screenshot-list-badge');
@@ -872,11 +957,9 @@ export function FeedbackWidget({
       });
     });
 
-    // Cleanup is minimal - container listeners use refs so they stay valid
-    // Form element listeners are on elements that get replaced via innerHTML
+    // Cleanup - remove document listener
     return () => {
-      // Nothing to clean up - container listeners are permanent and use refs
-      // Form listeners are on elements that get replaced each render
+      document.removeEventListener('click', handleDocumentClick);
     };
   }, [
     effectivePosition,
@@ -895,6 +978,7 @@ export function FeedbackWidget({
     handleClearAllScreenshots,
     handleRemoveScreenshot,
     handleShowScreenshotPreview,
+    handleFileUpload,
     feedbackType,
     feedbackMessage,
     submissionState,
