@@ -369,7 +369,7 @@
       "id": "STORY-022",
       "title": "Replace element selection with screenshot capture in widget",
       "priority": 22,
-      "passes": false,
+      "passes": true,
       "description": "Update the main FeedbackWidget to use screenshot capture instead of DOM element selection. Replace all element-related state and logic with screenshot equivalents.",
       "acceptanceCriteria": [
         "selectedElements state replaced with capturedScreenshots state",

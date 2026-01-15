@@ -101,3 +101,27 @@ Started: Wed Jan 14 16:32:15 PST 2026
   - Mock Supabase client by mocking the @supabase/supabase-js module with vi.mock()
   - Use vi.resetModules() in beforeEach when testing environment variable changes
 ---
+
+## 2026-01-14 16:56 - STORY-022
+- What was implemented:
+  - Updated submit handler in index.tsx to upload screenshots to Supabase Storage before feedback submission
+  - Screenshots are fetched from blob URLs, uploaded via uploadScreenshot(), and URLs included in submission
+  - Replaced selectedElements state with capturedScreenshots throughout the widget
+  - FeedbackForm now only uses ScreenshotList (removed ElementList import and usage)
+  - Removed ElementList styles import from styles.ts
+  - Updated getFeedbackFormHTML signature to remove deprecated element parameters
+  - Added 3 new Playwright tests for full screenshot flow:
+    - Full flow: open widget, draw region, see thumbnail, submit feedback
+    - Submit without screenshots works
+    - Submit with multiple screenshots works
+- Files changed:
+  - src/components/FeedbackWidget/index.tsx - upload screenshots on submit, removed element references
+  - src/components/FeedbackWidget/FeedbackForm.tsx - removed ElementList import/usage
+  - src/components/FeedbackWidget/styles.ts - removed ElementList styles import
+  - tests/e2e/feedback-flow.spec.ts - added 3 new E2E tests
+- **Learnings for future iterations:**
+  - To get blob data from a blob URL, use fetch(blobUrl).then(r => r.blob())
+  - Screenshot upload is best-effort: failures are logged but don't block submission
+  - E2E tests for screenshot upload are lenient since Supabase may not be configured
+  - ElementList.tsx and utils/elements.ts remain in codebase (cleanup is STORY-023)
+---
