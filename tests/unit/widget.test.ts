@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
-  savePosition,
-  loadPosition,
-  clearPosition,
-  constrainToViewport,
-  type WidgetPosition,
+  saveCorner,
+  loadCorner,
+  clearCorner,
+  getNearestCorner,
+  type WidgetCorner,
 } from '../../src/components/FeedbackWidget/utils/storage'
 import {
   detectUserId,
@@ -64,135 +64,81 @@ afterEach(() => {
 // Storage Utils Tests
 // ============================================
 
-describe('Storage Utils - Position Persistence', () => {
-  describe('savePosition', () => {
-    it('should save position to localStorage', () => {
-      const position: WidgetPosition = { x: 100, y: 200 }
-      savePosition(position)
+describe('Storage Utils - Corner Persistence', () => {
+  describe('saveCorner', () => {
+    it('should save corner to localStorage', () => {
+      const corner: WidgetCorner = 'bottom-right'
+      saveCorner(corner)
 
-      const stored = localStorage.getItem('feedback-widget-position')
-      expect(stored).toBe(JSON.stringify(position))
+      const stored = localStorage.getItem('feedback-widget-corner')
+      expect(stored).toBe(corner)
     })
 
-    it('should overwrite existing position', () => {
-      savePosition({ x: 100, y: 200 })
-      savePosition({ x: 300, y: 400 })
+    it('should overwrite existing corner', () => {
+      saveCorner('bottom-right')
+      saveCorner('top-left')
 
-      const stored = localStorage.getItem('feedback-widget-position')
-      expect(stored).toBe(JSON.stringify({ x: 300, y: 400 }))
-    })
-  })
-
-  describe('loadPosition', () => {
-    it('should load position from localStorage', () => {
-      localStorage.setItem(
-        'feedback-widget-position',
-        JSON.stringify({ x: 150, y: 250 })
-      )
-
-      const position = loadPosition()
-      expect(position).toEqual({ x: 150, y: 250 })
-    })
-
-    it('should return null when no position is saved', () => {
-      const position = loadPosition()
-      expect(position).toBeNull()
-    })
-
-    it('should return null for invalid JSON', () => {
-      localStorage.setItem('feedback-widget-position', 'invalid-json')
-
-      const position = loadPosition()
-      expect(position).toBeNull()
-    })
-
-    it('should return null for invalid position data', () => {
-      localStorage.setItem(
-        'feedback-widget-position',
-        JSON.stringify({ x: 'not-a-number', y: 200 })
-      )
-
-      const position = loadPosition()
-      expect(position).toBeNull()
-    })
-
-    it('should return null for missing properties', () => {
-      localStorage.setItem('feedback-widget-position', JSON.stringify({ x: 100 }))
-
-      const position = loadPosition()
-      expect(position).toBeNull()
+      const stored = localStorage.getItem('feedback-widget-corner')
+      expect(stored).toBe('top-left')
     })
   })
 
-  describe('clearPosition', () => {
-    it('should remove position from localStorage', () => {
-      localStorage.setItem(
-        'feedback-widget-position',
-        JSON.stringify({ x: 100, y: 200 })
-      )
+  describe('loadCorner', () => {
+    it('should load corner from localStorage', () => {
+      localStorage.setItem('feedback-widget-corner', 'bottom-left')
 
-      clearPosition()
+      const corner = loadCorner()
+      expect(corner).toBe('bottom-left')
+    })
 
-      const stored = localStorage.getItem('feedback-widget-position')
+    it('should return null when no corner is saved', () => {
+      const corner = loadCorner()
+      expect(corner).toBeNull()
+    })
+
+    it('should return null for invalid corner value', () => {
+      localStorage.setItem('feedback-widget-corner', 'invalid-corner')
+
+      const corner = loadCorner()
+      expect(corner).toBeNull()
+    })
+  })
+
+  describe('clearCorner', () => {
+    it('should remove corner from localStorage', () => {
+      localStorage.setItem('feedback-widget-corner', 'bottom-right')
+
+      clearCorner()
+
+      const stored = localStorage.getItem('feedback-widget-corner')
       expect(stored).toBeNull()
     })
 
-    it('should not throw when no position exists', () => {
-      expect(() => clearPosition()).not.toThrow()
+    it('should not throw when no corner exists', () => {
+      expect(() => clearCorner()).not.toThrow()
     })
   })
 
-  describe('constrainToViewport', () => {
-    it('should keep position within viewport bounds', () => {
-      const position: WidgetPosition = { x: 100, y: 200 }
-      const constrained = constrainToViewport(position, 56, 56)
-
-      expect(constrained.x).toBe(100)
-      expect(constrained.y).toBe(200)
+  describe('getNearestCorner', () => {
+    it('should return bottom-right for position in bottom-right quadrant', () => {
+      // Viewport: 1024x768
+      const corner = getNearestCorner(800, 500)
+      expect(corner).toBe('bottom-right')
     })
 
-    it('should constrain position that exceeds right edge', () => {
-      // Viewport: 1024 wide, widget: 56px, padding: 8px
-      // Max x = 1024 - 56 - 8 = 960
-      const position: WidgetPosition = { x: 1000, y: 200 }
-      const constrained = constrainToViewport(position, 56, 56)
-
-      expect(constrained.x).toBe(960)
-      expect(constrained.y).toBe(200)
+    it('should return bottom-left for position in bottom-left quadrant', () => {
+      const corner = getNearestCorner(200, 500)
+      expect(corner).toBe('bottom-left')
     })
 
-    it('should constrain position that exceeds bottom edge', () => {
-      // Viewport: 768 high, widget: 56px, padding: 8px
-      // Max y = 768 - 56 - 8 = 704
-      const position: WidgetPosition = { x: 100, y: 750 }
-      const constrained = constrainToViewport(position, 56, 56)
-
-      expect(constrained.x).toBe(100)
-      expect(constrained.y).toBe(704)
+    it('should return top-right for position in top-right quadrant', () => {
+      const corner = getNearestCorner(800, 200)
+      expect(corner).toBe('top-right')
     })
 
-    it('should constrain position that is negative (left edge)', () => {
-      const position: WidgetPosition = { x: -50, y: 200 }
-      const constrained = constrainToViewport(position, 56, 56)
-
-      expect(constrained.x).toBe(8) // Minimum padding
-      expect(constrained.y).toBe(200)
-    })
-
-    it('should constrain position that is negative (top edge)', () => {
-      const position: WidgetPosition = { x: 100, y: -30 }
-      const constrained = constrainToViewport(position, 56, 56)
-
-      expect(constrained.x).toBe(100)
-      expect(constrained.y).toBe(8) // Minimum padding
-    })
-
-    it('should constrain position that exceeds all edges', () => {
-      const position: WidgetPosition = { x: 2000, y: 2000 }
-      const constrained = constrainToViewport(position, 56, 56)
-
-      expect(constrained.x).toBe(960) // Max right
-      expect(constrained.y).toBe(704) // Max bottom
+    it('should return top-left for position in top-left quadrant', () => {
+      const corner = getNearestCorner(200, 200)
+      expect(corner).toBe('top-left')
     })
   })
 })
