@@ -673,7 +673,7 @@ export function FeedbackWidget({
     const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : '';
 
     // Form content (always rendered, visibility controlled by CSS)
-    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError);
+    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError, isValidationError);
 
     // Check if morph container already exists - if so, just update style/class
     let morphContainer = morphContainerRef.current;
@@ -887,6 +887,12 @@ export function FeedbackWidget({
     if (messageTextarea) {
       messageTextarea.addEventListener('input', (e) => {
         setFeedbackMessage((e.target as HTMLTextAreaElement).value);
+        // Clear validation error when user starts typing
+        if (isValidationError) {
+          setIsValidationError(false);
+          setSubmissionState('idle');
+          setErrorMessage('');
+        }
       });
       // Prevent keyboard events from bubbling to the main app
       messageTextarea.addEventListener('keydown', (e) => {

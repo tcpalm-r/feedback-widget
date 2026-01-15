@@ -66,7 +66,8 @@ export function getFeedbackFormHTML(
   isNetworkError: boolean = false,
   capturedScreenshots: CapturedScreenshot[] = [],
   isScreenshotListExpanded: boolean = false,
-  showRetryButton: boolean = true
+  showRetryButton: boolean = true,
+  isValidationError: boolean = false
 ): string {
   const typeOptions = feedbackTypeOptions
     .map(
@@ -77,6 +78,7 @@ export function getFeedbackFormHTML(
 
   const isLoading = submissionState === 'loading';
   const isDisabled = isLoading;
+  const showBanner = submissionState === 'error' && !isValidationError;
 
   // Success state - show success message
   if (submissionState === 'success') {
@@ -115,7 +117,7 @@ export function getFeedbackFormHTML(
       </div>
 
       <form class="feedback-form-body">
-        ${submissionState === 'error' ? `
+        ${showBanner ? `
           <div class="feedback-error-banner">
             <span class="feedback-error-icon">${AlertCircleIcon}</span>
             <span class="feedback-error-text">${errorMessage || 'Something went wrong. Please try again.'}</span>
@@ -133,8 +135,8 @@ export function getFeedbackFormHTML(
           <textarea
             id="feedback-message"
             name="message"
-            class="feedback-textarea"
-            placeholder="Tell us what's on your mind..."
+            class="feedback-textarea ${isValidationError ? 'error' : ''}"
+            placeholder="${isValidationError ? errorMessage : 'Tell us what\'s on your mind...'}"
             rows="1"
             ${isDisabled ? 'disabled' : ''}
           >${message}</textarea>

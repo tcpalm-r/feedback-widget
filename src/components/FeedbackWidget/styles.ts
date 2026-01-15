@@ -320,6 +320,20 @@ export const getWidgetStyles = (): string => `
     box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.15);
   }
 
+  .feedback-textarea.error {
+    border-color: #dc2626;
+    background-color: #fef2f2;
+  }
+
+  .feedback-textarea.error::placeholder {
+    color: #dc2626;
+  }
+
+  .feedback-textarea.error:focus {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  }
+
   .feedback-submit-button {
     width: 100%;
     padding: 12px 16px;
