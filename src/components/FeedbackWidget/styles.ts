@@ -86,6 +86,11 @@ export const getWidgetStyles = (): string => `
     transition: none;
   }
 
+  /* Disable transitions when initializing (fallback) */
+  .feedback-widget-morph.initializing {
+    transition: none;
+  }
+
   .feedback-widget-morph.expanded {
     width: 320px;
     height: 346px;

@@ -134,10 +134,11 @@ export function FeedbackWidget({
 
   // Use external store for position
   const widgetState = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const { position: widgetPosition, isDragging } = widgetState;
+  const { position: widgetPosition, isDragging, isInitialized } = widgetState;
 
-  // Initialize position on mount
-  useEffect(() => {
+  // Initialize position on mount - useLayoutEffect ensures this runs before paint
+  // This prevents the widget from animating from default position to saved position
+  useLayoutEffect(() => {
     initializePosition(effectivePosition);
   }, [effectivePosition]);
 
@@ -650,7 +651,8 @@ export function FeedbackWidget({
 
   // Render Shadow DOM content
   useEffect(() => {
-    if (!hostRef.current || !isClient) return;
+    // Don't render until position is initialized from localStorage
+    if (!hostRef.current || !isClient || !isInitialized) return;
 
     // Create Shadow DOM if it doesn't exist
     if (!shadowRootRef.current) {
@@ -662,6 +664,7 @@ export function FeedbackWidget({
     // Build CSS classes for the morph container
     const expandedClass = isExpanded ? 'expanded' : '';
     const draggingClass = isDragging ? 'dragging' : '';
+    const initializingClass = !isInitialized ? 'initializing' : '';
 
     // Calculate position - use expanded position when expanded (expands toward center)
     const currentPosition = isExpanded
@@ -679,7 +682,7 @@ export function FeedbackWidget({
     let morphContainer = morphContainerRef.current;
     if (morphContainer && shadowRoot.contains(morphContainer)) {
       // Update existing element (preserves CSS transitions!)
-      morphContainer.className = `feedback-widget-morph ${expandedClass} ${draggingClass}`.trim();
+      morphContainer.className = `feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass}`.trim();
       morphContainer.style.cssText = positionStyle;
       morphContainer.setAttribute('aria-expanded', String(isExpanded));
 
@@ -751,7 +754,7 @@ export function FeedbackWidget({
         ${selectionModeOverlay}
         <div class="feedback-tooltip" id="widget-tooltip">Provide Feedback</div>
         <div
-          class="feedback-widget-morph ${expandedClass} ${draggingClass}"
+          class="feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass}"
           style="${positionStyle}"
           role="dialog"
           aria-label="Feedback widget"
@@ -1060,6 +1063,7 @@ export function FeedbackWidget({
     widgetState.corner,
     isDragging,
     isClient,
+    isInitialized,
     handleMouseDown,
     handleClose,
     handleSubmit,
