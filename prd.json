@@ -1,5 +1,5 @@
 {
-  "branchName": "main",
+  "branchName": "ralph/lasso-screenshot",
   "stories": [
     {
       "id": "STORY-001",
@@ -278,6 +278,152 @@
         "Sonance brand colors applied (#00A3E1)",
         "All existing E2E tests pass",
         "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-018",
+      "title": "Install html2canvas and screenshot utility",
+      "priority": 18,
+      "passes": true,
+      "description": "Install html2canvas library and create a screenshot utility module that wraps html2canvas for capturing screen regions.",
+      "acceptanceCriteria": [
+        "html2canvas is installed as a dependency (npm install html2canvas)",
+        "@types/html2canvas is installed for TypeScript support",
+        "src/components/FeedbackWidget/utils/screenshot.ts exists",
+        "screenshot.ts exports CapturedScreenshot interface with: id, blobUrl, region (x,y,width,height), capturedAt, sizeBytes",
+        "screenshot.ts exports captureRegion(x, y, width, height) function that returns Promise<Blob>",
+        "captureRegion uses html2canvas with useCORS: true and logging: false",
+        "Regions smaller than 10x10 pixels throw error 'Selection too small'",
+        "Regions larger than 2000px in either dimension are scaled down proportionally",
+        "Unit test in tests/unit/screenshot.test.ts verifies captureRegion interface",
+        "npm run test passes",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-019",
+      "title": "Lasso rectangle drawing canvas",
+      "priority": 19,
+      "passes": true,
+      "description": "Replace the DOM element highlighting in SelectionMode with a canvas-based lasso rectangle drawing system like macOS Cmd+Shift+4.",
+      "acceptanceCriteria": [
+        "SelectionMode.tsx is rewritten to use a full-viewport canvas overlay",
+        "Canvas has crosshair cursor and is transparent",
+        "Mousedown starts drawing a rectangle from that point",
+        "Mousemove while dragging draws rectangle with Sonance blue (#00A3E1) 2px border and 20% opacity fill",
+        "Mouseup completes the rectangle and triggers screenshot capture of that region",
+        "Completed rectangles show numbered badge (1, 2, 3...) at top-left corner",
+        "Maximum 5 rectangles can be drawn (shows warning if exceeded)",
+        "ESC key cancels current drawing and exits selection mode",
+        "Done button exits selection mode",
+        "Playwright test: entering selection mode shows canvas with crosshair cursor",
+        "Playwright test: drawing rectangle (mousedown, mousemove, mouseup) creates visible selection",
+        "Playwright test: ESC key exits selection mode",
+        "npm run test:e2e passes",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-020",
+      "title": "Screenshot list UI component",
+      "priority": 20,
+      "passes": false,
+      "description": "Create ScreenshotList component to display captured screenshots as thumbnails in the feedback form, replacing ElementList.",
+      "acceptanceCriteria": [
+        "src/components/FeedbackWidget/ScreenshotList.tsx exists",
+        "Component displays screenshots as 48x48px thumbnails in horizontal row",
+        "Each thumbnail has numbered badge in corner (matching selection order)",
+        "Each thumbnail has X button to remove that screenshot",
+        "Clicking thumbnail shows larger preview (200px max dimension)",
+        "'Clear all' button removes all screenshots",
+        "Collapsed state shows 'X screenshots' badge",
+        "Expanded state shows thumbnail grid",
+        "Uses Sonance brand colors and styling",
+        "Playwright test: after drawing rectangle, thumbnail appears in form",
+        "Playwright test: clicking X on thumbnail removes it",
+        "Playwright test: 'Clear all' removes all thumbnails",
+        "npm run test:e2e passes",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-021",
+      "title": "Supabase Storage upload function",
+      "priority": 21,
+      "passes": false,
+      "description": "Add screenshot upload functionality to supabase.ts for storing captured screenshots in Supabase Storage.",
+      "acceptanceCriteria": [
+        "src/lib/supabase.ts exports uploadScreenshot(blob, appId, index) function",
+        "Function uploads blob to 'feedback-screenshots' bucket",
+        "Storage path format: {appId}/{timestamp}-{index}.png",
+        "Function returns { url: string, storagePath: string } on success",
+        "Function returns null on failure with console error",
+        "Function handles missing Supabase client gracefully",
+        "supabase/migrations/002_screenshots.sql exists with storage bucket creation SQL",
+        "Unit test mocks Supabase client and verifies upload function interface",
+        "npm run test passes",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-022",
+      "title": "Replace element selection with screenshot capture in widget",
+      "priority": 22,
+      "passes": false,
+      "description": "Update the main FeedbackWidget to use screenshot capture instead of DOM element selection. Replace all element-related state and logic with screenshot equivalents.",
+      "acceptanceCriteria": [
+        "selectedElements state replaced with capturedScreenshots state",
+        "Selection mode captures lasso regions as screenshots instead of detecting DOM elements",
+        "FeedbackForm uses ScreenshotList instead of ElementList",
+        "Submit handler uploads screenshots to Supabase Storage before inserting feedback",
+        "Feedback submission includes screenshots array with URLs instead of elements",
+        "Badge overlay system updated for screenshot regions",
+        "All element detection code removed from index.tsx",
+        "Playwright test: full flow - open widget, draw region, see thumbnail, submit feedback",
+        "Playwright test: submit without screenshots works",
+        "Playwright test: submit with multiple screenshots works",
+        "npm run test:e2e passes",
+        "npm run build passes"
+      ]
+    },
+    {
+      "id": "STORY-023",
+      "title": "Remove deprecated element selection files",
+      "priority": 23,
+      "passes": false,
+      "description": "Clean up deprecated files that are no longer needed after switching to screenshot-based selection.",
+      "acceptanceCriteria": [
+        "src/components/FeedbackWidget/utils/elements.ts is deleted",
+        "src/components/FeedbackWidget/ElementList.tsx is deleted",
+        "All imports of elements.ts are removed",
+        "All imports of ElementList.tsx are removed",
+        "No TypeScript errors about missing files",
+        "No dead code referencing element selection",
+        "Old element-related unit tests removed or updated",
+        "All existing Playwright tests still pass",
+        "npm run test passes",
+        "npm run test:e2e passes",
+        "npm run build passes",
+        "npm run lint passes"
+      ]
+    },
+    {
+      "id": "STORY-024",
+      "title": "Edge case and regression testing",
+      "priority": 24,
+      "passes": false,
+      "description": "Add comprehensive edge case tests and ensure all regression tests pass for the lasso screenshot feature.",
+      "acceptanceCriteria": [
+        "Playwright test: drawing very small region (< 10px) shows warning and doesn't capture",
+        "Playwright test: drawing 6th region shows max limit warning",
+        "Playwright test: rapidly drawing multiple regions doesn't cause race conditions",
+        "Playwright test: widget works correctly in all 4 corner positions",
+        "Playwright test: selection mode works after form collapse/expand cycle",
+        "Playwright test: screenshots persist when toggling selection mode on/off",
+        "All unit tests pass: npm run test",
+        "All E2E tests pass: npm run test:e2e",
+        "npm run build passes",
+        "npm run lint passes with no warnings"
       ]
     }
   ]

@@ -1,382 +1,58 @@
 # Ralph Progress Log
-Started: Wed Jan 14 12:25:23 PST 2026
+Started: Wed Jan 14 16:32:15 PST 2026
+---
 
 ## Codebase Patterns
-- Use `npm run test` for Vitest unit tests (tests/unit/)
-- Use `npm run test:e2e` for Playwright E2E tests (tests/e2e/)
-- Environment variables for Supabase: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
-- .env.example is explicitly tracked in git (exception added to .gitignore)
-- Use Next.js `Link` component for internal navigation (ESLint enforces no-html-link-for-pages)
-- FeedbackWidget uses Shadow DOM - all styles must be in styles.ts and injected via getWidgetStyles()
-- FeedbackWidget components go in src/components/FeedbackWidget/ directory
-- Use useSyncExternalStore for external state (avoids ESLint react-hooks rules issues)
-- FeedbackWidget position is managed via external store in utils/positionStore.ts
-- Supabase client is a singleton in src/lib/supabase.ts - use getSupabaseClient() to access
-- JWT detection utility is in utils/jwt.ts - supports configurable cookie/localStorage keys
+- html2canvas 1.4.1 has built-in types, do NOT install @types/html2canvas (causes type conflicts)
+- Storage utils were refactored from x/y position to corner-based positioning (saveCorner/loadCorner)
+- Widget uses corner snapping: bottom-right, bottom-left, top-right, top-left
+- Screenshot utilities are in src/components/FeedbackWidget/utils/screenshot.ts
+- Selection mode uses canvas-based lasso drawing instead of DOM element highlighting
+- Canvas overlay is in Shadow DOM; update counter/warning text in-place to avoid destroying event listeners
+- DrawnRectangle interface tracks x, y, width, height, id, number for each lasso region
 
 ---
 
-## Wed Jan 14 12:27 PST 2026 - STORY-001
+## 2026-01-14 16:35 - STORY-018
 - What was implemented:
-  - Installed @supabase/supabase-js and lucide-react as production dependencies
-  - Installed and configured Vitest with @vitejs/plugin-react, jsdom, @testing-library/react
-  - Installed and configured Playwright for E2E testing
-  - Created vitest.config.ts with jsdom environment and React plugin
-  - Created playwright.config.ts with chromium project and webServer config
-  - Created .env.example with Supabase placeholders
-  - Added test and test:e2e scripts to package.json
-  - Created placeholder test files in tests/unit and tests/e2e
+  - Installed html2canvas library for screen capture
+  - Created screenshot.ts utility module with CapturedScreenshot interface
+  - captureRegion(x, y, width, height) returns Promise<Blob>
+  - captureScreenshot() returns full CapturedScreenshot object with blob URL
+  - Validation: regions < 10x10 throw "Selection too small"
+  - Regions > 2000px in either dimension are scaled down proportionally
 - Files changed:
-  - package.json (added dependencies and scripts)
-  - package-lock.json (updated)
-  - vitest.config.ts (new)
-  - playwright.config.ts (new)
-  - .env.example (new)
-  - .gitignore (added !.env.example exception)
-  - tests/unit/setup.test.ts (new)
-  - tests/e2e/setup.spec.ts (new)
+  - package.json - added html2canvas dependency
+  - src/components/FeedbackWidget/utils/screenshot.ts - new file
+  - tests/unit/screenshot.test.ts - new file with 15 tests
+  - tests/unit/widget.test.ts - fixed pre-existing storage tests to use corner API
 - **Learnings for future iterations:**
-  - .gitignore excludes .env* by default, so .env.example needs explicit exception
-  - Vitest 4.x with React needs @vitejs/plugin-react for JSX support
-  - Playwright webServer config auto-starts dev server for E2E tests
+  - html2canvas 1.4.1 ships with its own TypeScript types in dist/types/
+  - @types/html2canvas is for version 0.5 and conflicts with modern html2canvas types
+  - The storage.ts API was refactored from position-based to corner-based in STORY-017
+  - html2canvas options x, y, width, height are in RenderOptions interface
 ---
 
-## Wed Jan 14 2026 - STORY-002
+## 2026-01-14 16:45 - STORY-019
 - What was implemented:
-  - Created supabase/migrations/ directory structure
-  - Created 001_feedback_table.sql migration file with full schema
-  - Schema includes: id (UUID), app_id (TEXT NOT NULL), type (TEXT), message (TEXT NOT NULL), elements (JSONB), metadata (JSONB), created_at (TIMESTAMPTZ)
-  - Added RLS policy for public INSERT (anyone can submit feedback)
-  - Added RLS policy for authenticated SELECT (only authenticated users can view)
-  - Added indexes on app_id and created_at for query performance
+  - Rewrote SelectionMode.tsx to use full-viewport canvas overlay
+  - Canvas has crosshair cursor and is transparent
+  - Mousedown/mousemove/mouseup draws lasso rectangles
+  - Rectangle styling: Sonance blue (#00A3E1) 2px border, 20% opacity fill
+  - Numbered badges drawn on canvas at top-left of each completed rectangle
+  - Maximum 5 rectangles with warning when limit exceeded
+  - ESC key cancels and exits selection mode
+  - Done button exits selection mode
+  - Screenshot capture triggers on mouseup with valid region
+  - Updated index.tsx to manage capturedScreenshots and drawnRectangles state
+  - Counter updates in-place without destroying canvas/event listeners
 - Files changed:
-  - supabase/migrations/001_feedback_table.sql (new)
-  - prd.json (marked STORY-002 as passes: true)
+  - src/components/FeedbackWidget/SelectionMode.tsx - complete rewrite for canvas
+  - src/components/FeedbackWidget/index.tsx - replaced element selection with screenshot capture
+  - tests/e2e/feedback-flow.spec.ts - updated tests for canvas-based selection
 - **Learnings for future iterations:**
-  - Supabase migrations go in supabase/migrations/ directory
-  - RLS policies use TO public for anonymous access, TO authenticated for logged-in users
-  - Use gen_random_uuid() for UUID defaults in Supabase/PostgreSQL
----
-
-## Wed Jan 14 2026 - STORY-003
-- What was implemented:
-  - Created demo page at src/app/demo/page.tsx
-  - Navigation bar with logo link, nav links, notifications button, and sign-in button
-  - Feature cards section with three card components
-  - Contact form with text inputs, email, select dropdown, textarea, checkbox, and buttons
-  - Button variants section (primary, success, danger, warning, outline, ghost, disabled)
-  - Links section with different link styles
-  - Interactive elements with ARIA roles (role=button, role=checkbox, role=tab)
-  - Data table with action buttons (edit/delete)
-  - Footer with policy and contact links
-- Files changed:
-  - src/app/demo/page.tsx (new)
-  - prd.json (marked STORY-003 as passes: true)
-- **Learnings for future iterations:**
-  - Use Next.js Link component for internal navigation to pass ESLint rules
-  - Demo page provides good test surface for element selection feature with varied interactive elements
----
-
-## Wed Jan 14 2026 - STORY-004
-- What was implemented:
-  - Created FeedbackWidget component with Shadow DOM for style isolation
-  - Created styles.ts with brand colors (indigo primary) and widget CSS
-  - Implemented circular button (56px) with MessageSquare icon from Lucide
-  - Added hover tooltip showing "Feedback" text with arrow pointer
-  - Widget is fixed position (default: bottom-right corner)
-  - Supports position prop: bottom-right, bottom-left, top-right, top-left
-  - Added widget to demo page
-- Files changed:
-  - src/components/FeedbackWidget/index.tsx (new)
-  - src/components/FeedbackWidget/styles.ts (new)
-  - src/app/demo/page.tsx (added FeedbackWidget import and usage)
-  - prd.json (marked STORY-004 as passes: true)
-- **Learnings for future iterations:**
-  - Shadow DOM requires using attachShadow({ mode: 'open' }) on a host element
-  - Shadow DOM styles are injected via <style> tag inside the shadow root
-  - SVG icons can be embedded as template strings and injected via innerHTML
-  - 'use client' directive is required for components using hooks like useEffect, useState
-  - Components using Shadow DOM cannot use Lucide React components directly - need raw SVG
----
-
-## Wed Jan 14 2026 - STORY-005
-- What was implemented:
-  - Added drag functionality to FeedbackWidget with mouse events
-  - Created localStorage utilities in src/components/FeedbackWidget/utils/storage.ts
-  - Created external position store in src/components/FeedbackWidget/utils/positionStore.ts
-  - Position persists to localStorage with key 'feedback-widget-position'
-  - Position restored from localStorage on component mount
-  - Widget stays within viewport bounds (cannot be dragged off-screen)
-  - Added grab/grabbing cursor states during drag
-  - Click vs drag detection (5px threshold) to prevent accidental form toggle
-  - Window resize handler keeps widget within bounds
-- Files changed:
-  - src/components/FeedbackWidget/index.tsx (added drag functionality)
-  - src/components/FeedbackWidget/styles.ts (added draggable styles)
-  - src/components/FeedbackWidget/utils/storage.ts (new - localStorage helpers)
-  - src/components/FeedbackWidget/utils/positionStore.ts (new - external store)
-  - prd.json (marked STORY-005 as passes: true)
-- **Learnings for future iterations:**
-  - ESLint react-hooks/set-state-in-effect rule prevents setState in effects - use useSyncExternalStore pattern instead
-  - ESLint react-hooks/refs rule prevents ref access during render - use external stores for initialization
-  - useSyncExternalStore is the proper pattern for external state that needs SSR support
-  - useIsClient() hook pattern: useSyncExternalStore(() => () => {}, () => true, () => false)
-  - Drag-to-click discrimination needs threshold detection (5px) to prevent accidental triggers
----
-
-## Wed Jan 14 2026 - STORY-006
-- What was implemented:
-  - Created FeedbackForm.tsx with type dropdown (Bug, Feature, General), message textarea, submit and close buttons
-  - Form exports HTML-generating functions since widget uses Shadow DOM
-  - Added comprehensive form styles to styles.ts (input fields, buttons, labels, animations)
-  - Integrated form into FeedbackWidget index.tsx with expand/collapse states
-  - Close button (X) collapses form back to button state
-  - Form has slide-in animation when opening
-  - Type selection and message input are tracked in React state
-  - Submit handler logs to console (Supabase connection deferred to STORY-007)
-- Files changed:
-  - src/components/FeedbackWidget/FeedbackForm.tsx (new)
-  - src/components/FeedbackWidget/index.tsx (added form integration)
-  - src/components/FeedbackWidget/styles.ts (added form panel styles)
-  - prd.json (marked STORY-006 as passes: true)
-- **Learnings for future iterations:**
-  - Shadow DOM components need HTML-as-strings pattern - cannot use React JSX directly
-  - Form state must be managed in parent component and passed to HTML generator
-  - Event listeners for form elements inside Shadow DOM must be attached manually via querySelector
-  - Custom select dropdown arrow implemented via background-image with data URI encoded SVG
----
-
-## Wed Jan 14 2026 - STORY-007
-- What was implemented:
-  - Created src/lib/supabase.ts with Supabase client singleton and submitFeedback function
-  - Environment variable validation with console warnings for missing config
-  - Created src/components/FeedbackWidget/utils/jwt.ts for JWT token detection
-  - JWT detection checks both cookies and localStorage for common token keys
-  - Configurable JWT settings (cookieKeys, localStorageKeys, userIdClaim)
-  - Updated FeedbackForm.tsx with submission states: idle, loading, success, error
-  - Success state shows checkmark icon and auto-collapses after 2 seconds
-  - Error state shows error banner with retry button
-  - Loading state shows spinner and disables form inputs
-  - Auto-captures metadata: URL, userAgent, timestamp, userId (from JWT)
-  - Demo page now uses appId: 'demo-app'
-- Files changed:
-  - src/lib/supabase.ts (new - Supabase client and submission)
-  - src/components/FeedbackWidget/utils/jwt.ts (new - JWT detection)
-  - src/components/FeedbackWidget/FeedbackForm.tsx (added submission states)
-  - src/components/FeedbackWidget/index.tsx (integrated Supabase submission)
-  - src/components/FeedbackWidget/styles.ts (added loading, success, error styles)
-  - src/app/demo/page.tsx (added appId prop)
-  - prd.json (marked STORY-007 as passes: true)
-- **Learnings for future iterations:**
-  - Supabase client is created as singleton in src/lib/supabase.ts
-  - JWT tokens are often stored in nested JSON objects in localStorage - need to handle parsing
-  - Base64Url decoding for JWT requires character replacement: - to +, _ to /
-  - SVG icons for loading states need animation defined in CSS with @keyframes
-  - Auto-close timers need cleanup on unmount to prevent memory leaks
----
-
-## Wed Jan 14 2026 - STORY-008
-- What was implemented:
-  - Created tests/unit/widget.test.ts with comprehensive unit tests using Vitest
-  - Test for widget render: verifies form HTML generation with correct structure
-  - Test for form validation: verifies error state for empty message, required field structure
-  - Test for position persistence: savePosition, loadPosition, clearPosition, constrainToViewport
-  - Test for JWT detection: detectUserId from localStorage and cookies, createJwtConfig
-  - 42 total test cases covering storage utils, JWT detection, and form validation
-- Files changed:
-  - tests/unit/widget.test.ts (new - comprehensive unit tests)
-  - prd.json (marked STORY-008 as passes: true)
-- **Learnings for future iterations:**
-  - Vitest uses jsdom environment - mock localStorage/window/document via Object.defineProperty
-  - Create JWT tokens for testing with base64 encoded header.payload.signature format
-  - FeedbackForm exports HTML generator functions which can be unit tested independently
-  - Storage utils can be tested in isolation without needing the full React component
----
-
-## Wed Jan 14 2026 - STORY-009
-- What was implemented:
-  - Created SelectionMode.tsx with overlay, toolbar, and styling functions
-  - Added "Select on Screen" button to feedback form with crosshair icon
-  - Selection mode shows darkened overlay covering the page
-  - Cursor changes to crosshair in selection mode
-  - Toolbar at top shows "Click elements to select" with counter (X/5 selected)
-  - Done button to exit selection mode
-  - ESC key handler exits selection mode
-  - Clicking widget button in selection mode exits selection mode
-  - Widget button turns red in selection mode to indicate "exit" action
-  - ESC hint displayed at bottom of screen
-  - Form shows elements badge when elements are selected (prepared for STORY-010/011)
-- Files changed:
-  - src/components/FeedbackWidget/SelectionMode.tsx (new - selection mode overlay)
-  - src/components/FeedbackWidget/FeedbackForm.tsx (added "Select on Screen" button)
-  - src/components/FeedbackWidget/index.tsx (integrated selection mode state and handlers)
-  - src/components/FeedbackWidget/styles.ts (added selection mode styles via import)
-  - prd.json (marked STORY-009 as passes: true)
-- **Learnings for future iterations:**
-  - Selection mode collapses the form and shows overlay - re-expand on exit
-  - Selection mode components (overlay, toolbar) are rendered outside the widget container in Shadow DOM
-  - Disable dragging when in selection mode to prevent accidental moves
-  - setSelectedElements warning is expected until STORY-010/011 implement element selection
----
-
-## Tue Jan 14 2026 - STORY-010
-- What was implemented:
-  - Created element detection utility in src/components/FeedbackWidget/utils/elements.ts
-  - Detects interactive elements: buttons, links, inputs, [role], [onclick], [tabindex]
-  - isInteractiveElement() function checks if an element matches interactive selectors
-  - findInteractiveParent() finds closest interactive parent when clicking child elements
-  - generateSelector() creates unique CSS selectors for elements
-  - getElementInfo() captures rich data: selector, tagName, className, innerText, boundingBox
-  - truncateText() helper for limiting text length in captured data
-  - Added hover highlighting in selection mode with visual outline
-  - Highlight overlay is created outside Shadow DOM for proper positioning
-  - Non-interactive elements do not show highlight
-  - Highlight uses indigo border (matching brand) with light background
-- Files changed:
-  - src/components/FeedbackWidget/utils/elements.ts (new - element detection utilities)
-  - src/components/FeedbackWidget/index.tsx (added hover highlighting effect)
-  - prd.json (marked STORY-010 as passes: true)
-- **Learnings for future iterations:**
-  - ESLint react-hooks/set-state-in-effect rule prohibits setState in effects - use refs for non-render state
-  - Highlight overlay must be created in document.body (outside Shadow DOM) for proper z-index stacking
-  - Use document.elementFromPoint() to detect element under cursor
-  - Hide overlay temporarily when detecting to avoid self-detection
-  - hoveredElementRef uses ref instead of state since it doesn't trigger re-renders
----
-
-## Wed Jan 14 2026 - STORY-011
-- What was implemented:
-  - Click handler in selection mode for selecting/deselecting interactive elements
-  - Numbered badge overlays (1-5) that appear on selected elements
-  - 5-element maximum selection limit with warning message display
-  - SelectedElementData interface for serializable element information
-  - Rich data capture for each element: selector, tagName, className, innerText, boundingBox
-  - Counter display in toolbar showing "X/5 selected"
-  - Badge position updates on scroll and window resize
-  - Proper re-numbering of badges when deselecting elements
-  - Warning toast that appears when trying to select more than 5 elements
-- Files changed:
-  - src/components/FeedbackWidget/utils/elements.ts (added SelectedElementData type and createSelectedElementData helper)
-  - src/components/FeedbackWidget/index.tsx (added click selection, badge management, warning state)
-  - src/components/FeedbackWidget/SelectionMode.tsx (added warning parameter to overlay HTML and warning styles)
-  - prd.json (marked STORY-011 as passes: true)
-- **Learnings for future iterations:**
-  - Use capture phase (third param true) for click event to intercept before default actions
-  - e.preventDefault() and e.stopPropagation() needed to prevent link navigation during selection
-  - Badge map uses selector as key for reliable element identification
-  - When refs are used in cleanup functions, copy to local variable first to satisfy ESLint
-  - Selection badges are created in document.body (outside Shadow DOM) for proper z-index
----
-## Wed Jan 14 2026 - STORY-012
-- What was implemented:
-  - Created ElementList.tsx component for displaying selected elements in feedback form
-  - Expandable badge showing "X elements selected" that can be clicked to expand
-  - Expanded list shows each selected element with numbered badge, tag name, and truncated text
-  - Individual remove button for each element with hover state
-  - "Clear all" button to remove all selected elements at once
-  - Elements data included in Supabase submission (elements field in feedback table)
-  - Form state resets selected elements on successful submission
-  - Added isElementListExpanded state for toggling list visibility
-- Files changed:
-  - src/components/FeedbackWidget/ElementList.tsx (new - element list component)
-  - src/components/FeedbackWidget/FeedbackForm.tsx (integrated ElementList)
-  - src/components/FeedbackWidget/index.tsx (added handlers and state for element list)
-  - src/components/FeedbackWidget/styles.ts (imports ElementList styles)
-  - prd.json (marked STORY-012 as passes: true)
-- **Learnings for future iterations:**
-  - Shadow DOM components need HTML-as-string pattern for nested components too
-  - Event delegation for dynamically generated elements uses data attributes (data-remove-index)
-  - Element list state (expanded/collapsed) is separate from selected elements state
-  - Elements are cleared on successful submission along with other form fields
-  - escapeHtml helper prevents XSS when displaying user-selected element text
----
-
-## Wed Jan 14 2026 - STORY-013
-- What was implemented:
-  - Created tests/e2e/feedback-flow.spec.ts with comprehensive Playwright E2E tests
-  - Test: widget renders on demo page (checks button, tooltip in Shadow DOM)
-  - Test: form opens and closes (verifies form panel, type dropdown, message textarea, submit button)
-  - Test: enter selection mode and select elements (overlay, toolbar counter, Done button)
-  - Test: remove element from selection (element list badge, expanded list, remove/clear buttons)
-  - Test: submit feedback with selected elements (form submission with loading/success/error states)
-  - Test: ESC key exits selection mode
-  - Test: clicking widget button exits selection mode
-  - Test: form validation requires message (error banner for empty message)
-  - Updated playwright.config.ts with timeout settings
-  - Fixed selection mode overlay to use pointer-events: none for click pass-through
-- Files changed:
-  - tests/e2e/feedback-flow.spec.ts (new - comprehensive E2E tests)
-  - playwright.config.ts (added timeout and navigationTimeout settings)
-  - src/components/FeedbackWidget/SelectionMode.tsx (added pointer-events: none to overlay, pointer-events: auto to interactive children)
-  - prd.json (marked STORY-013 as passes: true)
-- **Learnings for future iterations:**
-  - Playwright doesn't support `pierce/` selector for Shadow DOM - use page.evaluate() with shadowRoot.querySelector()
-  - Shadow DOM elements with position:fixed don't have offsetParent - check getBoundingClientRect for visibility
-  - Selection mode overlay needs pointer-events: none to allow clicks to pass through to underlying elements
-  - Child elements of pointer-events: none parent need explicit pointer-events: auto to be clickable
-  - Testing Shadow DOM components requires custom helper functions for waitFor, click, getText, fill operations
----
-
-## Wed Jan 14 2026 - STORY-014
-- What was implemented:
-  - Created FeedbackWidget.init() static method for configuration
-  - Created src/components/FeedbackWidget/utils/config.ts with validation logic
-  - appId is required - throws error if missing, empty, or not a string
-  - position option supports: bottom-right, bottom-left, top-right, top-left (default: bottom-right)
-  - jwtConfig option allows customizing JWT detection (cookie keys, localStorage keys, claim name)
-  - Props can override init() config for flexibility (effectiveAppId, effectivePosition, effectiveJwtConfig)
-  - Updated demo page to use init() with appId: 'demo-app'
-  - Re-exported types (FeedbackWidgetConfig, WidgetPosition, JwtConfig) from index.tsx for convenience
-- Files changed:
-  - src/components/FeedbackWidget/utils/config.ts (new - config store with validation)
-  - src/components/FeedbackWidget/index.tsx (added init() method, effective config resolution)
-  - src/app/demo/page.tsx (updated to use init() and useIsClient pattern)
-  - prd.json (marked STORY-014 as passes: true)
-- **Learnings for future iterations:**
-  - Static methods on React components use function assignment pattern: FeedbackWidget.init = function init(...) {}
-  - ESLint react-hooks/set-state-in-effect prohibits setState in useEffect - use useSyncExternalStore pattern for client detection
-  - Config validation uses TypeScript assertion functions (asserts config is Type) for type narrowing
-  - Effective values pattern: props ?? globalConfig?.value ?? defaultValue for flexible override chain
----
-
-## Wed Jan 14 2026 - STORY-015
-- What was implemented:
-  - Enhanced Supabase error handling with getUserFriendlyErrorMessage() function
-  - Categorizes errors into network errors, CORS errors, rate limiting, auth errors, server errors
-  - Added isNetworkError flag to SubmitFeedbackResult for retry behavior
-  - Updated console.warn to console.error for missing env variables with clear instructions
-  - Retry button now actually re-submits the feedback (not just reset state)
-  - Network errors show "Retry" button text, other errors show "Try Again"
-  - Form validates empty message field and shows appropriate error
-- Files changed:
-  - src/lib/supabase.ts (added getUserFriendlyErrorMessage, isNetworkError flag)
-  - src/components/FeedbackWidget/index.tsx (added isNetworkError state, updated handleRetry to re-submit)
-  - src/components/FeedbackWidget/FeedbackForm.tsx (added isNetworkError param, dynamic button text)
-  - tests/unit/widget.test.ts (updated default error message expectation)
-  - prd.json (marked STORY-015 as passes: true)
-- **Learnings for future iterations:**
-  - Network errors can be detected by checking error.name === 'TypeError' or message patterns
-  - Use console.error for configuration errors (not console.warn) for better visibility
-  - Retry handlers can call the submit function directly to re-attempt submission
-  - Error classification helps show appropriate UI (retry for transient, different message for config)
----
-
-## Wed Jan 14 2026 - STORY-016
-- What was implemented:
-  - Created comprehensive README.md with project overview
-  - Installation instructions (git clone, npm install)
-  - Environment setup instructions (.env.local with Supabase credentials)
-  - Supabase setup guide with two options: Dashboard SQL Editor or Supabase CLI
-  - Migration details table explaining feedback table schema
-  - Configuration options documented (appId, position, jwtConfig)
-  - Complete example integration code snippet with useIsClient pattern
-  - Development commands section (dev, test, test:e2e, build, lint)
-  - Project structure overview
-- Files changed:
-  - README.md (replaced default Next.js boilerplate with comprehensive docs)
-  - prd.json (marked STORY-016 as passes: true)
-- **Learnings for future iterations:**
-  - README should cover the full setup flow: clone, install, env setup, database setup, configuration
-  - Include example integration code that follows the patterns used in the demo page
-  - Document both CLI and GUI options for database migrations (different user preferences)
+  - When updating Shadow DOM content, avoid replacing entire overlay to preserve canvas and listeners
+  - Use querySelector to find and update specific text elements (counter, warnings) instead
+  - html2canvas may fail silently in headless browsers; E2E tests should be lenient about counter value
+  - canvasUtils.normalizeRect() handles negative width/height from dragging any direction
 ---
