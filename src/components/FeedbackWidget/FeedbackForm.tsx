@@ -1,7 +1,7 @@
 // FeedbackForm - Generates form HTML for Shadow DOM
 // This exports functions that return HTML strings since the widget uses Shadow DOM
 
-import { getSelectOnScreenButtonHTML, getDragDropZoneHTML } from './SelectionMode';
+import { getSelectOnScreenButtonHTML } from './SelectionMode';
 import { getScreenshotListBadgeHTML } from './ScreenshotList';
 import { CapturedScreenshot } from './utils/screenshot';
 
@@ -65,7 +65,8 @@ export function getFeedbackFormHTML(
   errorMessage: string = '',
   isNetworkError: boolean = false,
   capturedScreenshots: CapturedScreenshot[] = [],
-  isScreenshotListExpanded: boolean = false
+  isScreenshotListExpanded: boolean = false,
+  showRetryButton: boolean = true
 ): string {
   const typeOptions = feedbackTypeOptions
     .map(
@@ -118,7 +119,7 @@ export function getFeedbackFormHTML(
           <div class="feedback-error-banner">
             <span class="feedback-error-icon">${AlertCircleIcon}</span>
             <span class="feedback-error-text">${errorMessage || 'Something went wrong. Please try again.'}</span>
-            <button type="button" class="feedback-retry-button">${isNetworkError ? 'Retry' : 'Try Again'}</button>
+            ${showRetryButton ? `<button type="button" class="feedback-retry-button">${isNetworkError ? 'Retry' : 'Try Again'}</button>` : ''}
           </div>
         ` : ''}
 
@@ -129,7 +130,6 @@ export function getFeedbackFormHTML(
         </div>
 
         <div class="feedback-form-field">
-          <label for="feedback-message" class="feedback-label">Message</label>
           <textarea
             id="feedback-message"
             name="message"
@@ -141,8 +141,6 @@ export function getFeedbackFormHTML(
         </div>
 
         ${getSelectOnScreenButtonHTML(isDisabled)}
-
-        ${getDragDropZoneHTML()}
 
         ${getScreenshotListBadgeHTML(capturedScreenshots, isScreenshotListExpanded)}
 

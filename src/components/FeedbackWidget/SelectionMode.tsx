@@ -63,11 +63,12 @@ export interface DrawnRectangle {
  */
 export function getSelectOnScreenButtonHTML(disabled: boolean = false): string {
   return `
-    <div class="feedback-screenshot-container">
+    <div class="feedback-screenshot-container" id="screenshot-dropzone">
       <input type="file" id="screenshot-file-input" class="feedback-file-input" accept="image/*" multiple ${disabled ? 'disabled' : ''} />
       <button
         type="button"
         class="feedback-select-button"
+        data-tooltip="You may also drag and drop!"
         ${disabled ? 'disabled' : ''}
       >
         ${ImageIcon}
@@ -84,17 +85,6 @@ export function getSelectOnScreenButtonHTML(disabled: boolean = false): string {
           <span>Upload Image</span>
         </button>
       </div>
-    </div>
-  `;
-}
-
-/**
- * Generate the drag-drop zone HTML
- */
-export function getDragDropZoneHTML(): string {
-  return `
-    <div class="feedback-dropzone" id="screenshot-dropzone">
-      <span>Drop images here</span>
     </div>
   `;
 }
@@ -207,10 +197,17 @@ export function getSelectionModeStyles(): string {
       stroke-linejoin: round;
     }
 
-    /* Dropdown container */
+    /* Dropdown container - also serves as drag-drop zone */
     .feedback-screenshot-container {
       position: relative;
       width: 100%;
+    }
+
+    /* Drag-over state for the container */
+    .feedback-screenshot-container.drag-over .feedback-select-button {
+      border-color: ${colors.blue};
+      background: rgba(0, 163, 225, 0.05);
+      border-style: solid;
     }
 
     /* Hidden file input */
@@ -275,24 +272,6 @@ export function getSelectionModeStyles(): string {
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
-    }
-
-    /* Drag-drop zone */
-    .feedback-dropzone {
-      border: 2px dashed ${colors.lightGray};
-      border-radius: 8px;
-      padding: 16px;
-      text-align: center;
-      color: ${colors.gray500};
-      font-size: 13px;
-      transition: all 0.15s ease;
-      margin-top: 8px;
-    }
-
-    .feedback-dropzone.drag-over {
-      border-color: ${colors.blue};
-      background: rgba(0, 163, 225, 0.05);
-      color: ${colors.blue};
     }
 
     /* Selection mode overlay with canvas */

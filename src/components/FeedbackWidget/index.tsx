@@ -105,6 +105,7 @@ export function FeedbackWidget({
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isNetworkError, setIsNetworkError] = useState(false);
+  const [isValidationError, setIsValidationError] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   // Update refs for event handlers to read current state
   isExpandedRef.current = isExpanded;
@@ -455,12 +456,14 @@ export function FeedbackWidget({
       setSubmissionState('error');
       setErrorMessage('Please enter a message');
       setIsNetworkError(false);
+      setIsValidationError(true);
       return;
     }
 
     setSubmissionState('loading');
     setErrorMessage('');
     setIsNetworkError(false);
+    setIsValidationError(false);
 
     const metadata = collectMetadata();
 
@@ -670,7 +673,7 @@ export function FeedbackWidget({
     const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : '';
 
     // Form content (always rendered, visibility controlled by CSS)
-    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded);
+    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError);
 
     // Check if morph container already exists - if so, just update style/class
     let morphContainer = morphContainerRef.current;
@@ -746,6 +749,7 @@ export function FeedbackWidget({
       shadowRoot.innerHTML = `
         <style>${getWidgetStyles()}</style>
         ${selectionModeOverlay}
+        <div class="feedback-tooltip" id="widget-tooltip">Provide Feedback</div>
         <div
           class="feedback-widget-morph ${expandedClass} ${draggingClass}"
           style="${positionStyle}"
@@ -754,7 +758,7 @@ export function FeedbackWidget({
           aria-expanded="${isExpanded}"
         >
           <!-- Button layer (visible when collapsed) -->
-          <div class="button-layer">
+          <div class="button-layer" data-tooltip="Provide Feedback">
             ${MessageSquareIcon}
           </div>
 
@@ -799,6 +803,44 @@ export function FeedbackWidget({
           }
         }
       });
+
+      // Tooltip hover handlers for collapsed widget
+      const tooltip = shadowRoot.querySelector('#widget-tooltip') as HTMLElement;
+      if (tooltip) {
+        const positionTooltip = (targetRect: DOMRect, text: string) => {
+          tooltip.textContent = text;
+          const viewportWidth = window.innerWidth;
+          const viewportHeight = window.innerHeight;
+          const centerX = targetRect.left + targetRect.width / 2;
+          const centerY = targetRect.top + targetRect.height / 2;
+
+          // Position tooltip toward center of viewport
+          // Horizontal: if element is on right half, show tooltip to the left
+          if (centerX > viewportWidth / 2) {
+            tooltip.style.left = `${targetRect.left - 8}px`;
+            tooltip.style.transform = 'translateX(-100%)';
+          } else {
+            tooltip.style.left = `${targetRect.right + 8}px`;
+            tooltip.style.transform = 'translateX(0)';
+          }
+
+          // Vertical: center tooltip vertically with the element
+          tooltip.style.top = `${centerY}px`;
+          tooltip.style.transform += ' translateY(-50%)';
+
+          tooltip.classList.add('visible');
+        };
+
+        container.addEventListener('mouseenter', () => {
+          if (!isExpandedRef.current && !isSelectionModeRef.current) {
+            const rect = container.getBoundingClientRect();
+            positionTooltip(rect, 'Provide Feedback');
+          }
+        });
+        container.addEventListener('mouseleave', () => {
+          tooltip.classList.remove('visible');
+        });
+      }
     }
 
     // Selection mode event listeners (re-added when overlay is created/updated)
@@ -868,6 +910,39 @@ export function FeedbackWidget({
         e.stopPropagation();
         screenshotMenu.classList.toggle('open');
       });
+    }
+
+    // Tooltip for screenshot button (separate from menu logic)
+    if (selectOnScreenButton) {
+      const tooltip = shadowRoot.querySelector('#widget-tooltip') as HTMLElement;
+      if (tooltip) {
+        selectOnScreenButton.addEventListener('mouseenter', () => {
+          const tooltipText = selectOnScreenButton.getAttribute('data-tooltip');
+          if (tooltipText) {
+            const rect = selectOnScreenButton.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const centerY = rect.top + rect.height / 2;
+
+            tooltip.textContent = tooltipText;
+            tooltip.style.left = `${rect.left + rect.width / 2}px`;
+            tooltip.style.transform = 'translateX(-50%)';
+
+            // Position above or below based on vertical position
+            if (centerY > viewportHeight / 2) {
+              tooltip.style.top = `${rect.top - 8}px`;
+              tooltip.style.transform += ' translateY(-100%)';
+            } else {
+              tooltip.style.top = `${rect.bottom + 8}px`;
+              tooltip.style.transform += ' translateY(0)';
+            }
+
+            tooltip.classList.add('visible');
+          }
+        });
+        selectOnScreenButton.addEventListener('mouseleave', () => {
+          tooltip.classList.remove('visible');
+        });
+      }
     }
 
     // Capture region menu item
@@ -984,6 +1059,7 @@ export function FeedbackWidget({
     submissionState,
     errorMessage,
     isNetworkError,
+    isValidationError,
     isSelectionMode,
     capturedScreenshots,
     isScreenshotListExpanded,

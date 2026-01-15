@@ -172,7 +172,7 @@ export const getWidgetStyles = (): string => `
     visibility: hidden;
     transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
     pointer-events: none;
-    z-index: 999998;
+    z-index: 2147483647;
   }
 
   .feedback-tooltip.visible {
