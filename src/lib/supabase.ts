@@ -128,6 +128,60 @@ function getUserFriendlyErrorMessage(error: unknown): { message: string; isNetwo
   };
 }
 
+export interface UploadScreenshotResult {
+  url: string;
+  storagePath: string;
+}
+
+/**
+ * Upload a screenshot blob to Supabase Storage
+ * @param blob - The screenshot blob to upload
+ * @param appId - The app ID for organizing screenshots
+ * @param index - The screenshot index (1, 2, 3, etc.)
+ * @returns Object with url and storagePath on success, null on failure
+ */
+export async function uploadScreenshot(
+  blob: Blob,
+  appId: string,
+  index: number
+): Promise<UploadScreenshotResult | null> {
+  const client = getSupabaseClient();
+
+  if (!client) {
+    console.error('[FeedbackWidget] Cannot upload screenshot: Supabase client not configured');
+    return null;
+  }
+
+  try {
+    const timestamp = Date.now();
+    const storagePath = `${appId}/${timestamp}-${index}.png`;
+
+    const { error: uploadError } = await client.storage
+      .from('feedback-screenshots')
+      .upload(storagePath, blob, {
+        contentType: 'image/png',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('[FeedbackWidget] Screenshot upload error:', uploadError);
+      return null;
+    }
+
+    const { data: urlData } = client.storage
+      .from('feedback-screenshots')
+      .getPublicUrl(storagePath);
+
+    return {
+      url: urlData.publicUrl,
+      storagePath,
+    };
+  } catch (err) {
+    console.error('[FeedbackWidget] Screenshot upload exception:', err);
+    return null;
+  }
+}
+
 export async function submitFeedback(
   feedback: FeedbackSubmission
 ): Promise<SubmitFeedbackResult> {
