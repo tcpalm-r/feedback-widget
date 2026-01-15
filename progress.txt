@@ -80,3 +80,24 @@ Started: Wed Jan 14 16:32:15 PST 2026
   - Click handlers on thumbnails need stopPropagation to not interfere with remove button
   - E2E tests for screenshot list are lenient since html2canvas may fail in headless browsers
 ---
+
+## 2026-01-14 16:51 - STORY-021
+- What was implemented:
+  - Added uploadScreenshot(blob, appId, index) function to src/lib/supabase.ts
+  - Function uploads screenshots to 'feedback-screenshots' Supabase Storage bucket
+  - Storage path format: {appId}/{timestamp}-{index}.png
+  - Returns { url: string, storagePath: string } on success, null on failure
+  - Graceful handling when Supabase client is not configured
+  - Created 002_screenshots.sql migration for storage bucket with RLS policies
+  - Public uploads allowed, public read access, authenticated delete
+  - Unit tests with mocked Supabase client verify upload function interface
+- Files changed:
+  - src/lib/supabase.ts - added uploadScreenshot function and UploadScreenshotResult interface
+  - supabase/migrations/002_screenshots.sql - new file for storage bucket creation
+  - tests/unit/supabase.test.ts - new file with 10 tests for upload function
+- **Learnings for future iterations:**
+  - Supabase Storage uses client.storage.from(bucket).upload() and .getPublicUrl() APIs
+  - Storage RLS policies go on storage.objects table, not custom tables
+  - Mock Supabase client by mocking the @supabase/supabase-js module with vi.mock()
+  - Use vi.resetModules() in beforeEach when testing environment variable changes
+---

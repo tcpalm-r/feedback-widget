@@ -350,7 +350,7 @@
       "id": "STORY-021",
       "title": "Supabase Storage upload function",
       "priority": 21,
-      "passes": false,
+      "passes": true,
       "description": "Add screenshot upload functionality to supabase.ts for storing captured screenshots in Supabase Storage.",
       "acceptanceCriteria": [
         "src/lib/supabase.ts exports uploadScreenshot(blob, appId, index) function",
