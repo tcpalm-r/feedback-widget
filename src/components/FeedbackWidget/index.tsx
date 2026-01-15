@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
 import { getWidgetStyles } from './styles';
 import { getFeedbackFormHTML, FeedbackType, SubmissionState } from './FeedbackForm';
-import { getSelectionModeOverlayHTML, canvasUtils, DrawnRectangle } from './SelectionMode';
+import { getSelectionModeOverlayHTML, getDisplayCanvasHTML, canvasUtils, DrawnRectangle } from './SelectionMode';
 import { CapturedScreenshot, captureScreenshot, releaseScreenshot } from './utils/screenshot';
 import {
   initializePosition,
@@ -17,7 +17,7 @@ import {
   WIDGET_SIZE,
   PADDING,
 } from './utils/positionStore';
-import { submitFeedback, FeedbackMetadata, SubmitFeedbackResult, uploadScreenshot } from '../../lib/supabase';
+import { submitFeedback, FeedbackMetadata, SubmitFeedbackResult, uploadScreenshot } from '../../lib/feedbackApi';
 import { detectUserId, JwtConfig } from './utils/jwt';
 import {
   initConfig,
@@ -37,6 +37,7 @@ export interface FeedbackWidgetProps {
   position?: WidgetPosition;
   appId?: string;
   jwtConfig?: JwtConfig;
+  apiBaseUrl?: string;
 }
 
 // Hook to detect client-side mount
@@ -56,6 +57,7 @@ function useIsClient() {
  * @param config.appId - Required. Unique identifier for your application
  * @param config.position - Optional. Initial position: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
  * @param config.jwtConfig - Optional. JWT detection configuration
+ * @param config.apiBaseUrl - Optional. Base URL for the hosted API
  *
  * @throws Error if appId is missing or invalid
  *
@@ -83,6 +85,7 @@ export function FeedbackWidget({
   position,
   appId,
   jwtConfig,
+  apiBaseUrl,
 }: FeedbackWidgetProps = {}) {
   // Get config from init() if available, with props as overrides
   const globalConfig = getConfig();
@@ -91,6 +94,7 @@ export function FeedbackWidget({
   const effectiveAppId = appId ?? globalConfig?.appId ?? 'default';
   const effectivePosition = position ?? globalConfig?.position ?? 'bottom-right';
   const effectiveJwtConfig = jwtConfig ?? globalConfig?.jwtConfig;
+  const effectiveApiBaseUrl = apiBaseUrl ?? globalConfig?.apiBaseUrl;
   const hostRef = useRef<HTMLDivElement>(null);
   const shadowRootRef = useRef<ShadowRoot | null>(null);
   const morphContainerRef = useRef<HTMLDivElement | null>(null);
@@ -271,14 +275,20 @@ export function FeedbackWidget({
   }, []);
 
   // Canvas-based lasso rectangle drawing in selection mode
-  // This effect sets up canvas event handlers for drawing rectangles
+  // Also handles display-only canvas when there are rectangles but not in selection mode
   useEffect(() => {
-    if (!isSelectionMode || !shadowRootRef.current) {
-      // Clean up canvas ref when exiting selection mode
+    const hasRectangles = drawnRectangles.length > 0;
+
+    // If not in selection mode and no rectangles, clean up
+    if (!isSelectionMode && !hasRectangles) {
       canvasRef.current = null;
       canvasCtxRef.current = null;
       isDrawingRef.current = false;
       drawStartRef.current = null;
+      return;
+    }
+
+    if (!shadowRootRef.current) {
       return;
     }
 
@@ -303,96 +313,112 @@ export function FeedbackWidget({
       // Redraw existing rectangles
       canvasUtils.redrawRectangles(ctx, canvas, drawnRectangles);
 
-      const handleCanvasMouseDown = (e: MouseEvent) => {
-        console.log('[FeedbackWidget] Canvas mousedown!', e.clientX, e.clientY);
-        isDrawingRef.current = true;
-        drawStartRef.current = { x: e.clientX, y: e.clientY };
-      };
-
-      const handleCanvasMouseMove = (e: MouseEvent) => {
-        if (!isDrawingRef.current || !drawStartRef.current || !canvasCtxRef.current || !canvasRef.current) {
-          return;
-        }
-
-        const ctx = canvasCtxRef.current;
-        const cvs = canvasRef.current;
-
-        // Redraw all completed rectangles
-        canvasUtils.redrawRectangles(ctx, cvs, drawnRectangles);
-
-        // Draw current active rectangle
-        const { x, y, width, height } = canvasUtils.normalizeRect(
-          drawStartRef.current.x,
-          drawStartRef.current.y,
-          e.clientX,
-          e.clientY
-        );
-        canvasUtils.drawRectangle(ctx, x, y, width, height, true);
-      };
-
-      const handleCanvasMouseUp = async (e: MouseEvent) => {
-        if (!isDrawingRef.current || !drawStartRef.current) {
-          return;
-        }
-
-        isDrawingRef.current = false;
-
-        const { x, y, width, height } = canvasUtils.normalizeRect(
-          drawStartRef.current.x,
-          drawStartRef.current.y,
-          e.clientX,
-          e.clientY
-        );
-
-        drawStartRef.current = null;
-
-        // Check max limit
-        if (drawnRectangles.length >= MAX_SCREENSHOTS) {
-          showWarning(`Maximum ${MAX_SCREENSHOTS} screenshots allowed`);
-          if (canvasCtxRef.current && canvasRef.current) {
-            canvasUtils.redrawRectangles(canvasCtxRef.current, canvasRef.current, drawnRectangles);
-          }
-          return;
-        }
-
-        // Create new rectangle
-        const newNumber = drawnRectangles.length + 1;
-        const newRect: DrawnRectangle = {
-          id: `rect-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-          x,
-          y,
-          width,
-          height,
-          number: newNumber,
+      // Only add interactive event handlers when in selection mode
+      if (isSelectionMode) {
+        const handleCanvasMouseDown = (e: MouseEvent) => {
+          console.log('[FeedbackWidget] Canvas mousedown!', e.clientX, e.clientY);
+          isDrawingRef.current = true;
+          drawStartRef.current = { x: e.clientX, y: e.clientY };
         };
 
-        // Add to state first (optimistic update)
-        setDrawnRectangles(prev => [...prev, newRect]);
-
-        // Capture screenshot of the region
-        try {
-          if (canvasRef.current) {
-            canvasRef.current.style.visibility = 'hidden';
+        const handleCanvasMouseMove = (e: MouseEvent) => {
+          if (!isDrawingRef.current || !drawStartRef.current || !canvasCtxRef.current || !canvasRef.current) {
+            return;
           }
 
-          const screenshot = await captureScreenshot(x, y, width, height);
+          const ctx = canvasCtxRef.current;
+          const cvs = canvasRef.current;
 
-          if (canvasRef.current) {
-            canvasRef.current.style.visibility = 'visible';
+          // Redraw all completed rectangles
+          canvasUtils.redrawRectangles(ctx, cvs, drawnRectangles);
+
+          // Draw current active rectangle
+          const { x, y, width, height } = canvasUtils.normalizeRect(
+            drawStartRef.current.x,
+            drawStartRef.current.y,
+            e.clientX,
+            e.clientY
+          );
+          canvasUtils.drawRectangle(ctx, x, y, width, height, true);
+        };
+
+        const handleCanvasMouseUp = async (e: MouseEvent) => {
+          if (!isDrawingRef.current || !drawStartRef.current) {
+            return;
           }
 
-          setCapturedScreenshots(prev => [...prev, screenshot]);
-        } catch (error) {
-          if (canvasRef.current) {
-            canvasRef.current.style.visibility = 'visible';
+          isDrawingRef.current = false;
+
+          const { x, y, width, height } = canvasUtils.normalizeRect(
+            drawStartRef.current.x,
+            drawStartRef.current.y,
+            e.clientX,
+            e.clientY
+          );
+
+          drawStartRef.current = null;
+
+          // Check max limit
+          if (drawnRectangles.length >= MAX_SCREENSHOTS) {
+            showWarning(`Maximum ${MAX_SCREENSHOTS} screenshots allowed`);
+            if (canvasCtxRef.current && canvasRef.current) {
+              canvasUtils.redrawRectangles(canvasCtxRef.current, canvasRef.current, drawnRectangles);
+            }
+            return;
           }
 
-          console.error('Failed to capture screenshot:', error);
-          showWarning('Failed to capture screenshot');
-          setDrawnRectangles(prev => prev.filter(r => r.id !== newRect.id));
-        }
-      };
+          // Create new rectangle
+          const newNumber = drawnRectangles.length + 1;
+          const newRect: DrawnRectangle = {
+            id: `rect-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            x,
+            y,
+            width,
+            height,
+            number: newNumber,
+          };
 
+          // Add to state first (optimistic update)
+          setDrawnRectangles(prev => [...prev, newRect]);
+
+          // Capture screenshot of the region
+          try {
+            if (canvasRef.current) {
+              canvasRef.current.style.visibility = 'hidden';
+            }
+
+            const screenshot = await captureScreenshot(x, y, width, height);
+
+            if (canvasRef.current) {
+              canvasRef.current.style.visibility = 'visible';
+            }
+
+            setCapturedScreenshots(prev => [...prev, screenshot]);
+          } catch (error) {
+            if (canvasRef.current) {
+              canvasRef.current.style.visibility = 'visible';
+            }
+
+            console.error('Failed to capture screenshot:', error);
+            showWarning('Failed to capture screenshot');
+            setDrawnRectangles(prev => prev.filter(r => r.id !== newRect.id));
+          }
+        };
+
+        // Add event listeners for interactive mode
+        canvas.addEventListener('mousedown', handleCanvasMouseDown);
+        document.addEventListener('mousemove', handleCanvasMouseMove);
+        document.addEventListener('mouseup', handleCanvasMouseUp);
+
+        // Store cleanup
+        cleanupFns.push(() => {
+          canvas.removeEventListener('mousedown', handleCanvasMouseDown);
+          document.removeEventListener('mousemove', handleCanvasMouseMove);
+          document.removeEventListener('mouseup', handleCanvasMouseUp);
+        });
+      }
+
+      // Always handle resize to keep canvas sized correctly
       const handleResize = () => {
         if (canvasRef.current && canvasCtxRef.current) {
           canvasUtils.initCanvas(canvasRef.current);
@@ -403,17 +429,8 @@ export function FeedbackWidget({
         }
       };
 
-      // Add event listeners
-      canvas.addEventListener('mousedown', handleCanvasMouseDown);
-      document.addEventListener('mousemove', handleCanvasMouseMove);
-      document.addEventListener('mouseup', handleCanvasMouseUp);
       window.addEventListener('resize', handleResize);
-
-      // Store cleanup
       cleanupFns.push(() => {
-        canvas.removeEventListener('mousedown', handleCanvasMouseDown);
-        document.removeEventListener('mousemove', handleCanvasMouseMove);
-        document.removeEventListener('mouseup', handleCanvasMouseUp);
         window.removeEventListener('resize', handleResize);
       });
     });
@@ -485,7 +502,7 @@ export function FeedbackWidget({
         const blob = await response.blob();
 
         // Upload to Supabase Storage
-        const uploadResult = await uploadScreenshot(blob, effectiveAppId, i + 1);
+        const uploadResult = await uploadScreenshot(blob, effectiveAppId, i + 1, effectiveApiBaseUrl);
 
         if (uploadResult) {
           uploadedScreenshots.push({
@@ -503,14 +520,17 @@ export function FeedbackWidget({
       }
     }
 
-    const result: SubmitFeedbackResult = await submitFeedback({
-      app_id: effectiveAppId,
-      type: feedbackType,
-      message: feedbackMessage.trim(),
-      // Include uploaded screenshot URLs (uses elements field for backwards compatibility)
-      elements: uploadedScreenshots.length > 0 ? uploadedScreenshots : undefined,
-      metadata,
-    });
+    const result: SubmitFeedbackResult = await submitFeedback(
+      {
+        app_id: effectiveAppId,
+        type: feedbackType,
+        message: feedbackMessage.trim(),
+        // Include uploaded screenshot URLs (uses elements field for backwards compatibility)
+        elements: uploadedScreenshots.length > 0 ? uploadedScreenshots : undefined,
+        metadata,
+      },
+      effectiveApiBaseUrl
+    );
 
     if (result.success) {
       setSubmissionState('success');
@@ -532,7 +552,7 @@ export function FeedbackWidget({
       setErrorMessage(result.error || 'Something went wrong. Please try again.');
       setIsNetworkError(result.isNetworkError || false);
     }
-  }, [feedbackType, feedbackMessage, effectiveAppId, collectMetadata, capturedScreenshots]);
+  }, [feedbackType, feedbackMessage, effectiveAppId, effectiveApiBaseUrl, collectMetadata, capturedScreenshots]);
 
   // Retry handler for error state - actually retries submission
   const handleRetry = useCallback(() => {
@@ -620,8 +640,7 @@ export function FeedbackWidget({
     setIsExpanded(true); // Re-expand form when exiting selection mode
     // Clear warning
     setSelectionWarning(null);
-    // Clear drawn rectangles (screenshots are kept)
-    setDrawnRectangles([]);
+    // Keep drawn rectangles visible until submission
   }, []);
 
   // Handle file upload (from file picker or drag-drop)
@@ -672,8 +691,11 @@ export function FeedbackWidget({
       : widgetPosition;
     const positionStyle = `left: ${currentPosition.x}px; top: ${currentPosition.y}px;`;
 
-    // Selection mode overlay (separate from widget)
-    const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : '';
+    // Selection mode overlay or display-only canvas (separate from widget)
+    const hasRectanglesToDisplay = drawnRectangles.length > 0;
+    const selectionModeOverlay = isSelectionMode
+      ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning)
+      : (hasRectanglesToDisplay ? getDisplayCanvasHTML() : '');
 
     // Form content (always rendered, visibility controlled by CSS)
     const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError, isValidationError);
@@ -717,17 +739,41 @@ export function FeedbackWidget({
         }
       }
 
-      // Update selection mode overlay
+      // Update selection mode overlay and canvas
       const existingOverlay = shadowRoot.querySelector('.selection-mode-overlay');
-      console.log('[FeedbackWidget] isSelectionMode:', isSelectionMode, 'existingOverlay:', !!existingOverlay);
+      const existingCanvas = shadowRoot.querySelector('.selection-mode-canvas');
+      const hasRectangles = drawnRectangles.length > 0;
+
       if (isSelectionMode && !existingOverlay) {
-        // Add overlay and canvas
-        console.log('[FeedbackWidget] Inserting overlay HTML:', selectionModeOverlay.substring(0, 200));
+        // Add full overlay and interactive canvas
+        // First remove any display-only canvas
+        if (existingCanvas) {
+          existingCanvas.remove();
+        }
         morphContainer.insertAdjacentHTML('beforebegin', selectionModeOverlay);
-        console.log('[FeedbackWidget] After insert - canvas:', !!shadowRoot.querySelector('.selection-mode-canvas'));
       } else if (!isSelectionMode && existingOverlay) {
-        // Remove overlay
+        // Exiting selection mode - remove overlay but keep canvas if there are rectangles
         existingOverlay.remove();
+        if (hasRectangles) {
+          // Convert to display-only canvas
+          if (existingCanvas) {
+            existingCanvas.classList.add('display-only');
+          }
+        } else if (existingCanvas) {
+          existingCanvas.remove();
+        }
+      } else if (!isSelectionMode && !existingOverlay && hasRectangles) {
+        // Not in selection mode but have rectangles - ensure display-only canvas exists
+        if (!existingCanvas) {
+          morphContainer.insertAdjacentHTML('beforebegin', getDisplayCanvasHTML());
+        } else if (!existingCanvas.classList.contains('display-only')) {
+          existingCanvas.classList.add('display-only');
+        }
+      } else if (!isSelectionMode && !existingOverlay && !hasRectangles) {
+        // No selection mode, no rectangles - clean up canvas
+        if (existingCanvas) {
+          existingCanvas.remove();
+        }
       } else if (isSelectionMode && existingOverlay) {
         // Update just the counter text without destroying the canvas
         const counter = existingOverlay.querySelector('.selection-mode-counter');
@@ -1083,6 +1129,7 @@ export function FeedbackWidget({
     isValidationError,
     isSelectionMode,
     capturedScreenshots,
+    drawnRectangles,
     isScreenshotListExpanded,
     selectionWarning,
   ]);

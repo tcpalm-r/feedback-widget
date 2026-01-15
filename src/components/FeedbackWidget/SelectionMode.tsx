@@ -125,6 +125,14 @@ export function getSelectionModeOverlayHTML(selectedCount: number = 0, warning: 
 }
 
 /**
+ * Generate display-only canvas HTML for showing rectangles when not in selection mode
+ * This canvas is non-interactive and just displays the captured regions
+ */
+export function getDisplayCanvasHTML(): string {
+  return `<canvas class="selection-mode-canvas display-only" id="selection-canvas"></canvas>`;
+}
+
+/**
  * Get selection mode styles with canvas-based lasso drawing
  * Using Sonance brand colors (#00A3E1) for selection rectangles
  */
@@ -151,7 +159,7 @@ export function getSelectionModeStyles(): string {
       justify-content: center;
       gap: 8px;
       width: 100%;
-      padding: 10px 16px;
+      padding: 20px 16px;
       background-color: ${colors.gray50};
       color: ${colors.charcoal};
       border: 1px dashed ${colors.lightGray};
@@ -296,6 +304,13 @@ export function getSelectionModeStyles(): string {
       cursor: crosshair;
       z-index: 999997;
       pointer-events: auto;  /* Explicitly receive mouse events */
+    }
+
+    /* Display-only canvas - non-interactive, just shows rectangles */
+    .selection-mode-canvas.display-only {
+      pointer-events: none;
+      cursor: default;
+      z-index: 999990;  /* Lower z-index so it doesn't block interactions */
     }
 
     /* Toolbar at top - above canvas */
