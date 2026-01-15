@@ -327,7 +327,7 @@
       "id": "STORY-020",
       "title": "Screenshot list UI component",
       "priority": 20,
-      "passes": false,
+      "passes": true,
       "description": "Create ScreenshotList component to display captured screenshots as thumbnails in the feedback form, replacing ElementList.",
       "acceptanceCriteria": [
         "src/components/FeedbackWidget/ScreenshotList.tsx exists",

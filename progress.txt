@@ -56,3 +56,27 @@ Started: Wed Jan 14 16:32:15 PST 2026
   - html2canvas may fail silently in headless browsers; E2E tests should be lenient about counter value
   - canvasUtils.normalizeRect() handles negative width/height from dragging any direction
 ---
+
+## 2026-01-14 16:50 - STORY-020
+- What was implemented:
+  - Created ScreenshotList.tsx component for displaying screenshot thumbnails
+  - 48x48px thumbnails in horizontal row with numbered badges
+  - Each thumbnail has remove (X) button that appears on hover
+  - Click thumbnail to show larger preview (200px max dimension)
+  - Preview shows in overlay with click-to-close functionality
+  - Clear all button removes all screenshots
+  - Collapsed state shows "X screenshots" badge
+  - Expanded state shows thumbnail grid
+  - Uses Sonance brand colors and styling
+- Files changed:
+  - src/components/FeedbackWidget/ScreenshotList.tsx - new file
+  - src/components/FeedbackWidget/styles.ts - import ScreenshotList styles
+  - src/components/FeedbackWidget/FeedbackForm.tsx - integrate ScreenshotList
+  - src/components/FeedbackWidget/index.tsx - add screenshot list event handlers
+  - tests/e2e/feedback-flow.spec.ts - added 3 new tests for screenshot thumbnails
+- **Learnings for future iterations:**
+  - ShadowRoot doesn't have insertAdjacentHTML; use createElement + appendChild instead
+  - Screenshot list uses similar pattern to ElementList but with image thumbnails
+  - Click handlers on thumbnails need stopPropagation to not interfere with remove button
+  - E2E tests for screenshot list are lenient since html2canvas may fail in headless browsers
+---
