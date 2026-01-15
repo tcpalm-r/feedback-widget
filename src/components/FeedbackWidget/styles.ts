@@ -1,7 +1,6 @@
 // FeedbackWidget Styles
 // Colors and typography sourced from Sonance brand guidelines
 import { getSelectionModeStyles } from './SelectionMode';
-import { getElementListStyles } from './ElementList';
 import { getScreenshotListStyles } from './ScreenshotList';
 
 // Sonance Brand Colors
@@ -495,8 +494,6 @@ export const getWidgetStyles = (): string => `
     cursor: not-allowed;
     opacity: 0.5;
   }
-
-  ${getElementListStyles()}
 
   ${getScreenshotListStyles()}
 

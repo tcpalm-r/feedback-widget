@@ -17,7 +17,7 @@ import {
   WIDGET_SIZE,
   PADDING,
 } from './utils/positionStore';
-import { submitFeedback, FeedbackMetadata, SubmitFeedbackResult } from '../../lib/supabase';
+import { submitFeedback, FeedbackMetadata, SubmitFeedbackResult, uploadScreenshot } from '../../lib/supabase';
 import { detectUserId, JwtConfig } from './utils/jwt';
 import {
   initConfig,
@@ -469,20 +469,47 @@ export function FeedbackWidget({
 
     const metadata = collectMetadata();
 
-    // Include screenshot blob URLs in the submission (actual upload happens in future story)
-    const screenshotData = capturedScreenshots.map(s => ({
-      blobUrl: s.blobUrl,
-      region: s.region,
-      capturedAt: s.capturedAt,
-      sizeBytes: s.sizeBytes,
-    }));
+    // Upload screenshots to Supabase Storage
+    const uploadedScreenshots: Array<{
+      url: string;
+      storagePath: string;
+      region: { x: number; y: number; width: number; height: number };
+      capturedAt: number;
+      sizeBytes: number;
+    }> = [];
+
+    for (let i = 0; i < capturedScreenshots.length; i++) {
+      const screenshot = capturedScreenshots[i];
+      try {
+        // Fetch the blob from the blob URL
+        const response = await fetch(screenshot.blobUrl);
+        const blob = await response.blob();
+
+        // Upload to Supabase Storage
+        const uploadResult = await uploadScreenshot(blob, effectiveAppId, i + 1);
+
+        if (uploadResult) {
+          uploadedScreenshots.push({
+            url: uploadResult.url,
+            storagePath: uploadResult.storagePath,
+            region: screenshot.region,
+            capturedAt: screenshot.capturedAt,
+            sizeBytes: screenshot.sizeBytes,
+          });
+        } else {
+          console.warn(`[FeedbackWidget] Failed to upload screenshot ${i + 1}`);
+        }
+      } catch (err) {
+        console.error(`[FeedbackWidget] Error uploading screenshot ${i + 1}:`, err);
+      }
+    }
 
     const result: SubmitFeedbackResult = await submitFeedback({
       app_id: effectiveAppId,
       type: feedbackType,
       message: feedbackMessage.trim(),
-      // Include screenshots as elements for now (will be replaced with proper screenshot handling)
-      elements: screenshotData.length > 0 ? screenshotData as unknown as undefined : undefined,
+      // Include uploaded screenshot URLs (uses elements field for backwards compatibility)
+      elements: uploadedScreenshots.length > 0 ? uploadedScreenshots : undefined,
       metadata,
     });
 
@@ -623,8 +650,7 @@ export function FeedbackWidget({
     const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : '';
 
     // Form content (always rendered, visibility controlled by CSS)
-    // Pass screenshots for ScreenshotList display, empty array for deprecated selectedElements
-    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, [], false, isNetworkError, capturedScreenshots, isScreenshotListExpanded);
+    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded);
 
     // Check if morph container already exists - if so, just update style/class
     let morphContainer = morphContainerRef.current;

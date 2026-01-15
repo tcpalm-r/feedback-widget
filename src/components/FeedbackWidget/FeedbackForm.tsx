@@ -2,9 +2,7 @@
 // This exports functions that return HTML strings since the widget uses Shadow DOM
 
 import { getSelectOnScreenButtonHTML } from './SelectionMode';
-import { getElementListBadgeHTML } from './ElementList';
 import { getScreenshotListBadgeHTML } from './ScreenshotList';
-import { SelectedElementData } from './utils/elements';
 import { CapturedScreenshot } from './utils/screenshot';
 
 // X icon SVG for close button (from Lucide)
@@ -65,8 +63,6 @@ export function getFeedbackFormHTML(
   message: string = '',
   submissionState: SubmissionState = 'idle',
   errorMessage: string = '',
-  selectedElements: SelectedElementData[] = [],
-  isElementListExpanded: boolean = false,
   isNetworkError: boolean = false,
   capturedScreenshots: CapturedScreenshot[] = [],
   isScreenshotListExpanded: boolean = false
@@ -146,8 +142,6 @@ export function getFeedbackFormHTML(
         </div>
 
         ${getSelectOnScreenButtonHTML(isDisabled)}
-
-        ${getElementListBadgeHTML(selectedElements, isElementListExpanded)}
 
         ${getScreenshotListBadgeHTML(capturedScreenshots, isScreenshotListExpanded)}
 
