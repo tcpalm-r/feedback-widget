@@ -1,14 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FeedbackWidget } from "@/components/FeedbackWidget";
-import { useSyncExternalStore } from "react";
-
-// Initialize the feedback widget configuration
-FeedbackWidget.init({
-  appId: 'demo-app',
-  position: 'bottom-right',
-});
+import { FeedbackWidget, WidgetPosition } from "@/components/FeedbackWidget";
+import { useSyncExternalStore, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
 // Hook to detect client-side mount (avoids ESLint set-state-in-effect rule)
 function useIsClient() {
@@ -19,9 +14,29 @@ function useIsClient() {
   );
 }
 
-export default function DemoPage() {
+// Component that uses searchParams (needs Suspense wrapper)
+function DemoPageContent() {
   // Track client-side mount to only render widget on client
   const isMounted = useIsClient();
+  const searchParams = useSearchParams();
+
+  // Get position from query param, default to bottom-right
+  const position = useMemo(() => {
+    const posParam = searchParams.get('position');
+    const validPositions = ['bottom-right', 'bottom-left', 'top-right', 'top-left'];
+    if (posParam && validPositions.includes(posParam)) {
+      return posParam as WidgetPosition;
+    }
+    return 'bottom-right' as WidgetPosition;
+  }, [searchParams]);
+
+  // Initialize the feedback widget configuration with dynamic position
+  useMemo(() => {
+    FeedbackWidget.init({
+      appId: 'demo-app',
+      position,
+    });
+  }, [position]);
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
       {/* Navigation */}
@@ -383,8 +398,17 @@ export default function DemoPage() {
         </div>
       </footer>
 
-      {/* Feedback Widget - uses config from FeedbackWidget.init() */}
-      {isMounted && <FeedbackWidget />}
+      {/* Feedback Widget - uses config from FeedbackWidget.init() with dynamic position */}
+      {isMounted && <FeedbackWidget key={position} position={position} />}
     </div>
+  );
+}
+
+// Main page component with Suspense boundary for useSearchParams
+export default function DemoPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-zinc-50 dark:bg-zinc-900" />}>
+      <DemoPageContent />
+    </Suspense>
   );
 }
