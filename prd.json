@@ -390,7 +390,7 @@
       "id": "STORY-023",
       "title": "Remove deprecated element selection files",
       "priority": 23,
-      "passes": false,
+      "passes": true,
       "description": "Clean up deprecated files that are no longer needed after switching to screenshot-based selection.",
       "acceptanceCriteria": [
         "src/components/FeedbackWidget/utils/elements.ts is deleted",

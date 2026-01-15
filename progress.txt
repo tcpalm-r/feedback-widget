@@ -125,3 +125,19 @@ Started: Wed Jan 14 16:32:15 PST 2026
   - E2E tests for screenshot upload are lenient since Supabase may not be configured
   - ElementList.tsx and utils/elements.ts remain in codebase (cleanup is STORY-023)
 ---
+
+## 2026-01-15 08:37 - STORY-023
+- What was implemented:
+  - Deleted src/components/FeedbackWidget/utils/elements.ts (element detection utilities)
+  - Deleted src/components/FeedbackWidget/ElementList.tsx (element list UI component)
+  - Verified no imports of these files existed elsewhere in the codebase
+  - Verified no element-related unit tests needed to be removed (widget.test.ts only tests screenshot-based flow)
+  - All quality checks pass: build, lint, test (64 unit tests), test:e2e (15 tests)
+- Files changed:
+  - src/components/FeedbackWidget/utils/elements.ts - DELETED (204 lines removed)
+  - src/components/FeedbackWidget/ElementList.tsx - DELETED (337 lines removed)
+- **Learnings for future iterations:**
+  - Clean deletions are straightforward when previous stories properly migrated all imports
+  - The transition from DOM element selection to screenshot capture was complete by STORY-022
+  - Total of 541 lines of dead code removed
+---
