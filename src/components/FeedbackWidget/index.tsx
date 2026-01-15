@@ -785,9 +785,17 @@ export function FeedbackWidget({
         }
       });
 
+      // Tooltip element (used by multiple handlers)
+      const tooltip = shadowRoot.querySelector('#widget-tooltip') as HTMLElement;
+
       // Handle click on button layer (only if not dragged)
       // Uses refs to read current state values
       container.addEventListener('click', () => {
+        // Hide tooltip when clicked
+        if (tooltip) {
+          tooltip.classList.remove('visible');
+        }
+
         // Only respond to clicks when collapsed
         if (isExpandedRef.current) return;
 
@@ -805,7 +813,6 @@ export function FeedbackWidget({
       });
 
       // Tooltip hover handlers for collapsed widget
-      const tooltip = shadowRoot.querySelector('#widget-tooltip') as HTMLElement;
       if (tooltip) {
         const positionTooltip = (targetRect: DOMRect, text: string) => {
           tooltip.textContent = text;
@@ -904,45 +911,49 @@ export function FeedbackWidget({
     const uploadMenuItem = shadowRoot.querySelector('[data-action="upload"]');
     const dropzone = shadowRoot.querySelector('#screenshot-dropzone');
 
+    // Tooltip for screenshot button
+    const screenshotTooltip = shadowRoot.querySelector('#widget-tooltip') as HTMLElement;
+
     // Toggle dropdown menu
     if (selectOnScreenButton && screenshotMenu) {
       selectOnScreenButton.addEventListener('click', (e) => {
         e.stopPropagation();
+        // Hide tooltip when clicked
+        if (screenshotTooltip) {
+          screenshotTooltip.classList.remove('visible');
+        }
         screenshotMenu.classList.toggle('open');
       });
     }
 
-    // Tooltip for screenshot button (separate from menu logic)
-    if (selectOnScreenButton) {
-      const tooltip = shadowRoot.querySelector('#widget-tooltip') as HTMLElement;
-      if (tooltip) {
-        selectOnScreenButton.addEventListener('mouseenter', () => {
-          const tooltipText = selectOnScreenButton.getAttribute('data-tooltip');
-          if (tooltipText) {
-            const rect = selectOnScreenButton.getBoundingClientRect();
-            const viewportHeight = window.innerHeight;
-            const centerY = rect.top + rect.height / 2;
+    // Tooltip hover for screenshot button
+    if (selectOnScreenButton && screenshotTooltip) {
+      selectOnScreenButton.addEventListener('mouseenter', () => {
+        const tooltipText = selectOnScreenButton.getAttribute('data-tooltip');
+        if (tooltipText) {
+          const rect = selectOnScreenButton.getBoundingClientRect();
+          const viewportHeight = window.innerHeight;
+          const centerY = rect.top + rect.height / 2;
 
-            tooltip.textContent = tooltipText;
-            tooltip.style.left = `${rect.left + rect.width / 2}px`;
-            tooltip.style.transform = 'translateX(-50%)';
+          screenshotTooltip.textContent = tooltipText;
+          screenshotTooltip.style.left = `${rect.left + rect.width / 2}px`;
+          screenshotTooltip.style.transform = 'translateX(-50%)';
 
-            // Position above or below based on vertical position
-            if (centerY > viewportHeight / 2) {
-              tooltip.style.top = `${rect.top - 8}px`;
-              tooltip.style.transform += ' translateY(-100%)';
-            } else {
-              tooltip.style.top = `${rect.bottom + 8}px`;
-              tooltip.style.transform += ' translateY(0)';
-            }
-
-            tooltip.classList.add('visible');
+          // Position above or below based on vertical position
+          if (centerY > viewportHeight / 2) {
+            screenshotTooltip.style.top = `${rect.top - 8}px`;
+            screenshotTooltip.style.transform += ' translateY(-100%)';
+          } else {
+            screenshotTooltip.style.top = `${rect.bottom + 8}px`;
+            screenshotTooltip.style.transform += ' translateY(0)';
           }
-        });
-        selectOnScreenButton.addEventListener('mouseleave', () => {
-          tooltip.classList.remove('visible');
-        });
-      }
+
+          screenshotTooltip.classList.add('visible');
+        }
+      });
+      selectOnScreenButton.addEventListener('mouseleave', () => {
+        screenshotTooltip.classList.remove('visible');
+      });
     }
 
     // Capture region menu item
