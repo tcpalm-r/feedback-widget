@@ -88,7 +88,7 @@ export const getWidgetStyles = (): string => `
 
   .feedback-widget-morph.expanded {
     width: 320px;
-    height: 410px;
+    height: 346px;
     border-radius: 12px;
     background-color: ${colors.background};
     box-shadow: 0 10px 40px ${colors.shadowDark}, 0 0 0 1px ${colors.lightGray};
@@ -300,7 +300,7 @@ export const getWidgetStyles = (): string => `
     color: ${colors.textDark};
     background-color: ${colors.background};
     resize: vertical;
-    min-height: 100px;
+    min-height: 36px;
     font-family: inherit;
     line-height: 1.6;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;

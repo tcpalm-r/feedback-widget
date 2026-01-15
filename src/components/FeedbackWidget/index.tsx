@@ -637,10 +637,35 @@ export function FeedbackWidget({
       morphContainer.style.cssText = positionStyle;
       morphContainer.setAttribute('aria-expanded', String(isExpanded));
 
-      // Update form content
+      // Update form content - but preserve textarea focus
       const formLayer = morphContainer.querySelector('.form-layer');
       if (formLayer) {
+        const existingTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
+        const activeElement = shadowRoot.activeElement;
+        const textareaHadFocus = activeElement === existingTextarea;
+        const selectionStart = existingTextarea?.selectionStart;
+        const selectionEnd = existingTextarea?.selectionEnd;
+        const scrollTop = existingTextarea?.scrollTop;
+
         formLayer.innerHTML = formContent;
+
+        // Restore focus, cursor position, and scroll if textarea was focused
+        if (textareaHadFocus) {
+          const newTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
+          if (newTextarea) {
+            newTextarea.focus();
+            if (selectionStart !== undefined && selectionEnd !== undefined) {
+              newTextarea.setSelectionRange(selectionStart, selectionEnd);
+            }
+            if (scrollTop !== undefined) {
+              newTextarea.scrollTop = scrollTop;
+            }
+            // Ensure cursor line is visible after restoring position
+            // This triggers the browser's native scroll-to-cursor behavior
+            const pos = newTextarea.selectionStart;
+            newTextarea.setSelectionRange(pos, pos);
+          }
+        }
       }
 
       // Update selection mode overlay
@@ -744,11 +769,25 @@ export function FeedbackWidget({
       typeSelect.addEventListener('change', (e) => {
         setFeedbackType((e.target as HTMLSelectElement).value as FeedbackType);
       });
+      // Prevent keyboard events from bubbling to the main app
+      typeSelect.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+      });
     }
 
     if (messageTextarea) {
       messageTextarea.addEventListener('input', (e) => {
         setFeedbackMessage((e.target as HTMLTextAreaElement).value);
+      });
+      // Prevent keyboard events from bubbling to the main app
+      messageTextarea.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+      });
+      messageTextarea.addEventListener('keyup', (e) => {
+        e.stopPropagation();
+      });
+      messageTextarea.addEventListener('keypress', (e) => {
+        e.stopPropagation();
       });
     }
 

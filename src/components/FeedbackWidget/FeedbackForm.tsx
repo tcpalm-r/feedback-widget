@@ -136,7 +136,7 @@ export function getFeedbackFormHTML(
             name="message"
             class="feedback-textarea"
             placeholder="Tell us what's on your mind..."
-            rows="4"
+            rows="1"
             ${isDisabled ? 'disabled' : ''}
           >${message}</textarea>
         </div>

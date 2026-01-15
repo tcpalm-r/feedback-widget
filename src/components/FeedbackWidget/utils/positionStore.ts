@@ -8,7 +8,7 @@ import {
 
 export const WIDGET_SIZE = 56;
 export const EXPANDED_WIDTH = 320;
-export const EXPANDED_HEIGHT = 450;
+export const EXPANDED_HEIGHT = 346;
 export const PADDING = 24;
 
 type Listener = () => void;
