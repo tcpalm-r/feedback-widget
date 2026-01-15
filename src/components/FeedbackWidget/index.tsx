@@ -543,6 +543,45 @@ export function FeedbackWidget({
     setIsScreenshotListExpanded(prev => !prev);
   }, []);
 
+  // Show screenshot preview (larger view)
+  const handleShowScreenshotPreview = useCallback((screenshot: CapturedScreenshot) => {
+    if (!shadowRootRef.current) return;
+
+    const shadowRoot = shadowRootRef.current;
+
+    // Remove any existing preview overlay
+    const existingOverlay = shadowRoot.querySelector('[data-preview-overlay]');
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
+
+    // Create preview overlay element
+    const overlay = document.createElement('div');
+    overlay.className = 'screenshot-preview-overlay';
+    overlay.setAttribute('data-preview-overlay', '');
+    overlay.innerHTML = `
+      <div class="screenshot-preview-container">
+        <img src="${screenshot.blobUrl}" alt="Screenshot preview" class="screenshot-preview-image" />
+        <button type="button" class="screenshot-preview-close" aria-label="Close preview">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>
+        </button>
+      </div>
+    `;
+
+    // Add click handler to close preview
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay || (e.target as HTMLElement).closest('.screenshot-preview-close')) {
+        overlay.remove();
+      }
+    });
+
+    // Append to shadow root
+    shadowRoot.appendChild(overlay);
+  }, []);
+
   // Enter selection mode handler
   const handleEnterSelectionMode = useCallback(() => {
     setIsSelectionMode(true);
@@ -584,9 +623,8 @@ export function FeedbackWidget({
     const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : '';
 
     // Form content (always rendered, visibility controlled by CSS)
-    // Note: For now, we pass empty selectedElements array since we're using screenshots
-    // The screenshot UI will be added in STORY-020
-    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, [], false, isNetworkError);
+    // Pass screenshots for ScreenshotList display, empty array for deprecated selectedElements
+    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, [], false, isNetworkError, capturedScreenshots, isScreenshotListExpanded);
 
     // Check if morph container already exists - if so, just update style/class
     let morphContainer = morphContainerRef.current;
@@ -772,10 +810,11 @@ export function FeedbackWidget({
       selectOnScreenButton.addEventListener('click', handleEnterSelectionMode);
     }
 
-    // Screenshot list event listeners (will be used when ScreenshotList component is added in STORY-020)
+    // Screenshot list event listeners
     const screenshotListBadge = shadowRoot.querySelector('.screenshot-list-badge');
     const clearAllScreenshotsButton = shadowRoot.querySelector('.screenshot-list-clear-all');
-    const removeScreenshotButtons = shadowRoot.querySelectorAll('.screenshot-item-remove');
+    const removeScreenshotButtons = shadowRoot.querySelectorAll('.screenshot-thumbnail-remove');
+    const screenshotThumbnails = shadowRoot.querySelectorAll('.screenshot-thumbnail-wrapper');
 
     if (screenshotListBadge) {
       screenshotListBadge.addEventListener('click', handleToggleScreenshotList);
@@ -787,8 +826,23 @@ export function FeedbackWidget({
 
     removeScreenshotButtons.forEach((btn) => {
       btn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Don't trigger thumbnail click
         const index = parseInt((e.currentTarget as HTMLElement).getAttribute('data-remove-index') || '0', 10);
         handleRemoveScreenshot(index);
+      });
+    });
+
+    // Click on thumbnail to show preview
+    screenshotThumbnails.forEach((thumbnail) => {
+      thumbnail.addEventListener('click', (e) => {
+        // Don't show preview if clicking remove button
+        if ((e.target as HTMLElement).closest('.screenshot-thumbnail-remove')) return;
+
+        const item = (e.currentTarget as HTMLElement).closest('.screenshot-thumbnail-item');
+        const index = parseInt(item?.getAttribute('data-screenshot-index') || '0', 10);
+        if (capturedScreenshots[index]) {
+          handleShowScreenshotPreview(capturedScreenshots[index]);
+        }
       });
     });
 
@@ -814,6 +868,7 @@ export function FeedbackWidget({
     handleToggleScreenshotList,
     handleClearAllScreenshots,
     handleRemoveScreenshot,
+    handleShowScreenshotPreview,
     feedbackType,
     feedbackMessage,
     submissionState,

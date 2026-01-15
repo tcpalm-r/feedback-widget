@@ -3,7 +3,9 @@
 
 import { getSelectOnScreenButtonHTML } from './SelectionMode';
 import { getElementListBadgeHTML } from './ElementList';
+import { getScreenshotListBadgeHTML } from './ScreenshotList';
 import { SelectedElementData } from './utils/elements';
+import { CapturedScreenshot } from './utils/screenshot';
 
 // X icon SVG for close button (from Lucide)
 const XIcon = `
@@ -65,7 +67,9 @@ export function getFeedbackFormHTML(
   errorMessage: string = '',
   selectedElements: SelectedElementData[] = [],
   isElementListExpanded: boolean = false,
-  isNetworkError: boolean = false
+  isNetworkError: boolean = false,
+  capturedScreenshots: CapturedScreenshot[] = [],
+  isScreenshotListExpanded: boolean = false
 ): string {
   const typeOptions = feedbackTypeOptions
     .map(
@@ -144,6 +148,8 @@ export function getFeedbackFormHTML(
         ${getSelectOnScreenButtonHTML(isDisabled)}
 
         ${getElementListBadgeHTML(selectedElements, isElementListExpanded)}
+
+        ${getScreenshotListBadgeHTML(capturedScreenshots, isScreenshotListExpanded)}
 
         <button type="submit" class="feedback-submit-button" ${isDisabled ? 'disabled' : ''}>
           ${isLoading ? `${LoaderIcon} Submitting...` : 'Submit'}

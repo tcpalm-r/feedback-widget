@@ -2,6 +2,7 @@
 // Colors and typography sourced from Sonance brand guidelines
 import { getSelectionModeStyles } from './SelectionMode';
 import { getElementListStyles } from './ElementList';
+import { getScreenshotListStyles } from './ScreenshotList';
 
 // Sonance Brand Colors
 export const colors = {
@@ -496,6 +497,8 @@ export const getWidgetStyles = (): string => `
   }
 
   ${getElementListStyles()}
+
+  ${getScreenshotListStyles()}
 
   ${getSelectionModeStyles()}
 `;
