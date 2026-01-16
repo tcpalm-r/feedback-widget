@@ -57,6 +57,7 @@ function useIsClient() {
  * @param config.appId - Required. Unique identifier for your application
  * @param config.position - Optional. Initial position: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
  * @param config.jwtConfig - Optional. JWT detection configuration
+ * @param config.env - Optional. Environment label (alpha | beta | dev | stable)
  * @param config.apiBaseUrl - Optional. Base URL for the hosted API
  *
  * @throws Error if appId is missing or invalid
@@ -684,12 +685,30 @@ export function FeedbackWidget({
     const expandedClass = isExpanded ? 'expanded' : '';
     const draggingClass = isDragging ? 'dragging' : '';
     const initializingClass = !isInitialized ? 'initializing' : '';
+    const cornerClass = isDragging ? '' : `corner-${widgetState.corner}`;
 
-    // Calculate position - use expanded position when expanded (expands toward center)
-    const currentPosition = isExpanded
-      ? getExpandedPositionForCorner(widgetState.corner)
-      : widgetPosition;
-    const positionStyle = `left: ${currentPosition.x}px; top: ${currentPosition.y}px;`;
+    // Calculate position style based on corner (use right/bottom for appropriate corners)
+    // This makes the expand/collapse animation grow toward the center of the viewport
+    const getPositionStyle = (): string => {
+      // When dragging, always use left/top for free movement
+      if (isDragging) {
+        return `left: ${widgetPosition.x}px; top: ${widgetPosition.y}px;`;
+      }
+
+      const padding = 24; // PADDING constant
+      switch (widgetState.corner) {
+        case 'top-left':
+          return `left: ${padding}px; top: ${padding}px;`;
+        case 'top-right':
+          return `right: ${padding}px; top: ${padding}px;`;
+        case 'bottom-left':
+          return `left: ${padding}px; bottom: ${padding}px;`;
+        case 'bottom-right':
+        default:
+          return `right: ${padding}px; bottom: ${padding}px;`;
+      }
+    };
+    const positionStyle = getPositionStyle();
 
     // Selection mode overlay or display-only canvas (separate from widget)
     const hasRectanglesToDisplay = drawnRectangles.length > 0;
@@ -704,7 +723,7 @@ export function FeedbackWidget({
     let morphContainer = morphContainerRef.current;
     if (morphContainer && shadowRoot.contains(morphContainer)) {
       // Update existing element (preserves CSS transitions!)
-      morphContainer.className = `feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass}`.trim();
+      morphContainer.className = `feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass} ${cornerClass}`.trim();
       morphContainer.style.cssText = positionStyle;
       morphContainer.setAttribute('aria-expanded', String(isExpanded));
 
@@ -800,7 +819,7 @@ export function FeedbackWidget({
         ${selectionModeOverlay}
         <div class="feedback-tooltip" id="widget-tooltip">Provide Feedback</div>
         <div
-          class="feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass}"
+          class="feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass} ${cornerClass}"
           style="${positionStyle}"
           role="dialog"
           aria-label="Feedback widget"

@@ -18,6 +18,72 @@ cd feedback-widget
 npm install
 ```
 
+## Hosted Widget (Central Script)
+
+Goal: one hosted `widget.js` file with instant rollouts.
+
+Build the script:
+
+```bash
+npm run build:widget
+```
+
+Deploy the app to Vercel. It will serve `public/widget.js` at:
+
+```
+https://feedback-widget-alpha-ten.vercel.app/widget.js
+```
+
+The widget posts to `/api/feedback` and `/api/screenshot` on the same domain.
+
+Remote config endpoint (optional):
+
+```
+https://feedback-widget-alpha-ten.vercel.app/api/config?env=alpha&app=my-app
+```
+
+Config env vars (optional):
+
+```
+WIDGET_KILL_SWITCH=true
+WIDGET_API_BASE_URL=https://feedback-widget-alpha-ten.vercel.app
+WIDGET_VERSION=0.1.0
+WIDGET_FLAGS={"screenshots":true}
+```
+
+Drop-in usage (Next.js):
+
+```tsx
+import Script from "next/script";
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <Script
+          src="https://feedback-widget-alpha-ten.vercel.app/widget.js"
+          strategy="afterInteractive"
+          data-app-id="my-app"
+          data-position="bottom-left"
+        />
+      </body>
+    </html>
+  );
+}
+```
+
+Minimum required: `data-app-id`. Optional: `data-position`.
+
+Optional: add `data-env="alpha"` (or `beta`, `dev`, `stable`) to enable remote config.
+
+Manual control (optional):
+
+```js
+window.FeedbackWidget?.init({ appId: "my-app" });
+window.FeedbackWidget?.mount();
+```
+
 ## Environment Setup
 
 Create a `.env.local` file in the project root with your Supabase credentials:
@@ -29,8 +95,8 @@ cp .env.example .env.local
 Edit `.env.local` with your Supabase project details:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 You can find these values in your Supabase project dashboard under **Settings > API**.
@@ -103,6 +169,8 @@ FeedbackWidget.init({
 | `appId` | string | Yes | - | Unique identifier for your application |
 | `position` | string | No | `'bottom-right'` | Initial widget position |
 | `jwtConfig` | object | No | See below | JWT detection settings |
+| `env` | string | No | - | Environment label (`alpha`, `beta`, `dev`, `stable`) |
+| `apiBaseUrl` | string | No | Script origin | Base URL for the hosted API |
 
 ### Position Options
 

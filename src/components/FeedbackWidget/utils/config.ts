@@ -4,6 +4,7 @@
 import { JwtConfig } from './jwt';
 
 export type WidgetPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+export type WidgetEnv = 'alpha' | 'beta' | 'dev' | 'stable';
 
 export interface FeedbackWidgetConfig {
   // Required: Unique identifier for the application
@@ -12,6 +13,10 @@ export interface FeedbackWidgetConfig {
   position?: WidgetPosition;
   // Optional: JWT detection configuration
   jwtConfig?: JwtConfig;
+  // Optional: Environment label for config routing
+  env?: WidgetEnv;
+  // Optional: Base URL for the hosted API (defaults to widget host)
+  apiBaseUrl?: string;
 }
 
 // Internal state
@@ -56,6 +61,23 @@ function validateConfig(config: unknown): asserts config is FeedbackWidgetConfig
   if (configObj.jwtConfig !== undefined && typeof configObj.jwtConfig !== 'object') {
     throw new Error('FeedbackWidget.init() jwtConfig must be an object');
   }
+
+  // Validate env if provided
+  if (configObj.env !== undefined) {
+    if (typeof configObj.env !== 'string') {
+      throw new Error('FeedbackWidget.init() env must be a string');
+    }
+    const validEnvs: WidgetEnv[] = ['alpha', 'beta', 'dev', 'stable'];
+    if (!validEnvs.includes(configObj.env as WidgetEnv)) {
+      throw new Error(
+        `FeedbackWidget.init() env must be one of: ${validEnvs.join(', ')}`
+      );
+    }
+  }
+
+  if (configObj.apiBaseUrl !== undefined && typeof configObj.apiBaseUrl !== 'string') {
+    throw new Error('FeedbackWidget.init() apiBaseUrl must be a string');
+  }
 }
 
 /**
@@ -84,6 +106,8 @@ export function initConfig(config: FeedbackWidgetConfig): void {
     appId: config.appId,
     position: config.position ?? 'bottom-right',
     jwtConfig: config.jwtConfig,
+    env: config.env,
+    apiBaseUrl: config.apiBaseUrl,
   };
 
   isInitialized = true;
