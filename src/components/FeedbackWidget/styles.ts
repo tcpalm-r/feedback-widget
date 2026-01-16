@@ -68,13 +68,11 @@ export const getWidgetStyles = (): string => `
     background-color: ${colors.blue};
     box-shadow: 0 4px 12px ${colors.shadowDark};
     transition:
-      left 0.3s ease-out,
-      top 0.3s ease-out,
-      width 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-      height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-      border-radius 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-      background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-      box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      width 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+      height 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+      border-radius 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+      background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
     cursor: grab;
     user-select: none;
@@ -84,6 +82,20 @@ export const getWidgetStyles = (): string => `
   .feedback-widget-morph.dragging {
     cursor: grabbing;
     transition: none;
+  }
+
+  /* Enable position transitions only during snap-to-corner animation */
+  .feedback-widget-morph.animating-to-corner {
+    transition:
+      left 0.3s ease-out,
+      top 0.3s ease-out,
+      right 0.3s ease-out,
+      bottom 0.3s ease-out,
+      width 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+      height 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+      border-radius 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+      background-color 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* Disable transitions when initializing (fallback) */
@@ -143,7 +155,7 @@ export const getWidgetStyles = (): string => `
     position: absolute;
     inset: 0;
     opacity: 0;
-    transition: opacity 0.15s ease 0.15s;
+    transition: opacity 0.08s ease 0.04s;
     pointer-events: none;
     display: flex;
     flex-direction: column;

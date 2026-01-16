@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { getWidgetStyles } from './styles';
 import { getFeedbackFormHTML, FeedbackType } from './FeedbackForm';
 import { getSelectionModeOverlayHTML, getDisplayCanvasHTML, DrawnRectangle } from './SelectionMode';
-import { getExpandedPositionForCorner } from './utils/positionStore';
 import { initConfig, getConfig, FeedbackWidgetConfig, WidgetPosition } from './utils/config';
 import { JwtConfig } from './utils/jwt';
 import { useWidgetPosition } from './hooks/useWidgetPosition';
@@ -48,7 +47,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
   isExpandedRef.current = isExpanded;
 
   const isClient = useIsClient();
-  const { widgetPosition, isDragging, isInitialized, widgetState } = useWidgetPosition(effectivePosition);
+  const { widgetPosition, isDragging, isInitialized, isAnimatingToCorner, widgetState } = useWidgetPosition(effectivePosition);
   const { handleMouseDownRef, hasDraggedRef } = useDragHandlers({ widgetPosition, isExpanded });
 
   const {
@@ -80,15 +79,40 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     const expandedClass = isExpanded ? 'expanded' : '';
     const draggingClass = isDragging ? 'dragging' : '';
     const initializingClass = !isInitialized ? 'initializing' : '';
-    const currentPosition = isExpanded ? getExpandedPositionForCorner(widgetState.corner) : widgetPosition;
-    const positionStyle = `left: ${currentPosition.x}px; top: ${currentPosition.y}px;`;
+    const animatingClass = isAnimatingToCorner ? 'animating-to-corner' : '';
+
+    // When dragging or animating to corner, use left/top positioning
+    // When settled at corner, use corner-appropriate positioning (right/bottom for right/bottom corners)
+    // This allows the widget to expand FROM the corner it's located in
+    const useAbsolutePosition = isDragging || isAnimatingToCorner;
+    let positionStyle: string;
+    if (useAbsolutePosition) {
+      positionStyle = `left: ${widgetPosition.x}px; top: ${widgetPosition.y}px; right: auto; bottom: auto;`;
+    } else {
+      const padding = 24;
+      switch (widgetState.corner) {
+        case 'top-left':
+          positionStyle = `left: ${padding}px; top: ${padding}px; right: auto; bottom: auto;`;
+          break;
+        case 'top-right':
+          positionStyle = `right: ${padding}px; top: ${padding}px; left: auto; bottom: auto;`;
+          break;
+        case 'bottom-left':
+          positionStyle = `left: ${padding}px; bottom: ${padding}px; right: auto; top: auto;`;
+          break;
+        case 'bottom-right':
+        default:
+          positionStyle = `right: ${padding}px; bottom: ${padding}px; left: auto; top: auto;`;
+          break;
+      }
+    }
     const hasRectanglesToDisplay = drawnRectangles.length > 0;
     const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : (hasRectanglesToDisplay ? getDisplayCanvasHTML() : '');
     const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError, isValidationError);
 
     let morphContainer = morphContainerRef.current;
     if (morphContainer && shadowRoot.contains(morphContainer)) {
-      morphContainer.className = `feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass}`.trim();
+      morphContainer.className = `feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass} ${animatingClass}`.trim();
       morphContainer.style.cssText = positionStyle;
       morphContainer.setAttribute('aria-expanded', String(isExpanded));
 
@@ -139,7 +163,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
         else if (selectionWarning && existingWarning) existingWarning.textContent = selectionWarning;
       }
     } else {
-      shadowRoot.innerHTML = `<style>${getWidgetStyles()}</style>${selectionModeOverlay}<div class="feedback-tooltip" id="widget-tooltip">Provide Feedback</div><div class="feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass}" style="${positionStyle}" role="dialog" aria-label="Feedback widget" aria-expanded="${isExpanded}"><div class="button-layer" data-tooltip="Provide Feedback">${MessageSquareIcon}</div><div class="form-layer">${formContent}</div></div>`;
+      shadowRoot.innerHTML = `<style>${getWidgetStyles()}</style>${selectionModeOverlay}<div class="feedback-tooltip" id="widget-tooltip">Provide Feedback</div><div class="feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass} ${animatingClass}" style="${positionStyle}" role="dialog" aria-label="Feedback widget" aria-expanded="${isExpanded}"><div class="button-layer" data-tooltip="Provide Feedback">${MessageSquareIcon}</div><div class="form-layer">${formContent}</div></div>`;
       morphContainer = shadowRoot.querySelector('.feedback-widget-morph') as HTMLDivElement;
       morphContainerRef.current = morphContainer;
     }
@@ -160,7 +184,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
       handleFileUpload, setFeedbackType, setFeedbackMessage,
     }, capturedScreenshots);
   }, [
-    isExpanded, widgetPosition, widgetState.corner, isDragging, isClient, isInitialized,
+    isExpanded, widgetPosition, widgetState.corner, isDragging, isAnimatingToCorner, isClient, isInitialized,
     handleClose, handleSubmit, handleRetry, handleEnterSelectionMode, handleExitSelectionMode,
     handleToggleScreenshotList, handleClearAllScreenshots, handleRemoveScreenshot, handleShowScreenshotPreview, handleFileUpload,
     feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, isValidationError,
