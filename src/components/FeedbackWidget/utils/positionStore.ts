@@ -24,7 +24,7 @@ let isAnimatingToCorner = false; // True during the snap animation (use left/top
 let dragPosition = { x: 0, y: 0 };
 
 // Cached snapshot to avoid infinite loops with useSyncExternalStore
-let cachedSnapshot: { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isAnimatingToCorner: boolean; isInitialized: boolean } | null = null;
+let cachedSnapshot: { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isSnapping: boolean; isAnimatingToCorner: boolean; isInitialized: boolean } | null = null;
 
 function invalidateSnapshot() {
   cachedSnapshot = null;
@@ -272,12 +272,13 @@ export function subscribe(listener: Listener): () => void {
   };
 }
 
-export function getSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isAnimatingToCorner: boolean; isInitialized: boolean } {
+export function getSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isSnapping: boolean; isAnimatingToCorner: boolean; isInitialized: boolean } {
   if (cachedSnapshot === null) {
     cachedSnapshot = {
       corner,
       position: getPosition(),
       isDragging,
+      isSnapping,
       isAnimatingToCorner,
       isInitialized: initialized,
     };
@@ -285,11 +286,12 @@ export function getSnapshot(): { corner: WidgetCorner; position: { x: number; y:
   return cachedSnapshot;
 }
 
-export function getServerSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isAnimatingToCorner: boolean; isInitialized: boolean } {
+export function getServerSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isSnapping: boolean; isAnimatingToCorner: boolean; isInitialized: boolean } {
   return {
     corner: 'bottom-right',
     position: { x: 0, y: 0 },
     isDragging: false,
+    isSnapping: false,
     isAnimatingToCorner: false,
     isInitialized: false,
   };

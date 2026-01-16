@@ -47,7 +47,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
   isExpandedRef.current = isExpanded;
 
   const isClient = useIsClient();
-  const { widgetPosition, isDragging, isInitialized, isAnimatingToCorner, widgetState } = useWidgetPosition(effectivePosition);
+  const { widgetPosition, isDragging, isSnapping, isInitialized, isAnimatingToCorner, widgetState } = useWidgetPosition(effectivePosition);
   const { handleMouseDownRef, hasDraggedRef } = useDragHandlers({ widgetPosition, isExpanded });
 
   const {
@@ -84,7 +84,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     // When dragging or animating to corner, use left/top positioning
     // When settled at corner, use corner-appropriate positioning (right/bottom for right/bottom corners)
     // This allows the widget to expand FROM the corner it's located in
-    const useAbsolutePosition = isDragging || isAnimatingToCorner;
+    const useAbsolutePosition = isDragging || isSnapping || isAnimatingToCorner || !isExpanded;
     let positionStyle: string;
     if (useAbsolutePosition) {
       positionStyle = `left: ${widgetPosition.x}px; top: ${widgetPosition.y}px; right: auto; bottom: auto;`;
@@ -184,7 +184,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
       handleFileUpload, setFeedbackType, setFeedbackMessage,
     }, capturedScreenshots);
   }, [
-    isExpanded, widgetPosition, widgetState.corner, isDragging, isAnimatingToCorner, isClient, isInitialized,
+    isExpanded, widgetPosition, widgetState.corner, isDragging, isSnapping, isAnimatingToCorner, isClient, isInitialized,
     handleClose, handleSubmit, handleRetry, handleEnterSelectionMode, handleExitSelectionMode,
     handleToggleScreenshotList, handleClearAllScreenshots, handleRemoveScreenshot, handleShowScreenshotPreview, handleFileUpload,
     feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, isValidationError,
