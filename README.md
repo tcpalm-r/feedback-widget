@@ -51,7 +51,9 @@ WIDGET_VERSION=0.1.0
 WIDGET_FLAGS={"screenshots":true}
 ```
 
-Drop-in usage (Next.js):
+## Host App Quickstart (Copy/Paste)
+
+Drop-in usage (Next.js App Router):
 
 ```tsx
 import Script from "next/script";
@@ -73,7 +75,22 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Minimum required: `data-app-id`. Optional: `data-position`.
+Plain HTML (any app):
+
+```html
+<script
+  src="https://feedback-widget-alpha-ten.vercel.app/widget.js"
+  data-app-id="my-app"
+  data-position="bottom-left"
+></script>
+```
+
+Minimum required: `data-app-id`.
+
+Optional data attributes:
+- `data-position` (`bottom-right`, `bottom-left`, `top-right`, `top-left`)
+- `data-env` (`alpha`, `beta`, `dev`, `stable`)
+- `data-api-base` (override API base URL)
 
 Optional: add `data-env="alpha"` (or `beta`, `dev`, `stable`) to enable remote config.
 
@@ -83,6 +100,11 @@ Manual control (optional):
 window.FeedbackWidget?.init({ appId: "my-app" });
 window.FeedbackWidget?.mount();
 ```
+
+CSP note (only if strict):
+- Allow `script-src` and `connect-src` to `https://feedback-widget-alpha-ten.vercel.app`
+- Allow `img-src` `blob:` (screenshot previews)
+- Allow `style-src 'unsafe-inline'` (Shadow DOM styles are injected)
 
 ## Environment Setup
 
