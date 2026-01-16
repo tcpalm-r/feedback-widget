@@ -20,10 +20,11 @@ const listeners = new Set<Listener>();
 // Track if we're currently dragging (for temporary x/y position)
 let isDragging = false;
 let isSnapping = false; // True when transitioning from drag to corner
+let isAnimatingToCorner = false; // True during the snap animation (use left/top positioning)
 let dragPosition = { x: 0, y: 0 };
 
 // Cached snapshot to avoid infinite loops with useSyncExternalStore
-let cachedSnapshot: { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isInitialized: boolean } | null = null;
+let cachedSnapshot: { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isAnimatingToCorner: boolean; isInitialized: boolean } | null = null;
 
 function invalidateSnapshot() {
   cachedSnapshot = null;
@@ -185,8 +186,15 @@ export function endDrag(): void {
     saveCorner(newCorner);
     cachedCornerPosition = null; // Invalidate cache
     cachedCornerForPosition = null;
-    isSnapping = false; // Now getPosition() returns corner position, CSS animates
+    isSnapping = false;
+    isAnimatingToCorner = true; // Keep using left/top during animation
     emitChange();
+
+    // Step 3: After animation completes, switch to corner-based positioning
+    setTimeout(() => {
+      isAnimatingToCorner = false;
+      emitChange();
+    }, 350); // Match the CSS transition duration (0.35s)
   }, 50); // 50ms delay ensures paint has occurred
 }
 
@@ -264,23 +272,25 @@ export function subscribe(listener: Listener): () => void {
   };
 }
 
-export function getSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isInitialized: boolean } {
+export function getSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isAnimatingToCorner: boolean; isInitialized: boolean } {
   if (cachedSnapshot === null) {
     cachedSnapshot = {
       corner,
       position: getPosition(),
       isDragging,
+      isAnimatingToCorner,
       isInitialized: initialized,
     };
   }
   return cachedSnapshot;
 }
 
-export function getServerSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isInitialized: boolean } {
+export function getServerSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isAnimatingToCorner: boolean; isInitialized: boolean } {
   return {
     corner: 'bottom-right',
     position: { x: 0, y: 0 },
     isDragging: false,
+    isAnimatingToCorner: false,
     isInitialized: false,
   };
 }

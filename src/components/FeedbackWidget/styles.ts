@@ -68,13 +68,13 @@ export const getWidgetStyles = (): string => `
     background-color: ${colors.blue};
     box-shadow: 0 4px 12px ${colors.shadowDark};
     transition:
-      left 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-      top 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-      width 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-      height 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-      border-radius 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-      background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-      box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      left 0.3s ease-out,
+      top 0.3s ease-out,
+      width 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+      height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+      border-radius 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+      background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
     cursor: grab;
     user-select: none;
@@ -99,8 +99,6 @@ export const getWidgetStyles = (): string => `
     box-shadow: 0 10px 40px ${colors.shadowDark}, 0 0 0 1px ${colors.lightGray};
     cursor: default;
   }
-
-  /* Position is always set via inline style (left/top) */
 
   /* ===== BUTTON LAYER (visible when collapsed) ===== */
   .button-layer {
