@@ -87,10 +87,10 @@ export const getWidgetStyles = (): string => `
   /* Enable position transitions only during snap-to-corner animation */
   .feedback-widget-morph.animating-to-corner {
     transition:
-      left 0.3s ease-out,
-      top 0.3s ease-out,
-      right 0.3s ease-out,
-      bottom 0.3s ease-out,
+      left 0.1s ease-out,
+      top 0.1s ease-out,
+      right 0.1s ease-out,
+      bottom 0.1s ease-out,
       width 0.1s cubic-bezier(0.4, 0, 0.2, 1),
       height 0.1s cubic-bezier(0.4, 0, 0.2, 1),
       border-radius 0.1s cubic-bezier(0.4, 0, 0.2, 1),

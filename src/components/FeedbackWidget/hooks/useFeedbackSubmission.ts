@@ -26,12 +26,22 @@ export function useFeedbackSubmission({
   setIsExpanded,
 }: UseFeedbackSubmissionProps) {
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('bug');
-  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackMessage, setFeedbackMessageRaw] = useState('');
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [isValidationError, setIsValidationError] = useState(false);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Wrapper that clears validation error when user types
+  const setFeedbackMessage = useCallback((msg: string) => {
+    setFeedbackMessageRaw(msg);
+    if (isValidationError) {
+      setIsValidationError(false);
+      setSubmissionState('idle');
+      setErrorMessage('');
+    }
+  }, [isValidationError]);
 
   // Collect metadata
   const collectMetadata = useCallback((): FeedbackMetadata => {

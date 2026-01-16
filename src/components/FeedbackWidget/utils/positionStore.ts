@@ -194,7 +194,7 @@ export function endDrag(): void {
     setTimeout(() => {
       isAnimatingToCorner = false;
       emitChange();
-    }, 350); // Match the CSS transition duration (0.35s)
+    }, 150); // Match the CSS transition duration (0.1s)
   }, 50); // 50ms delay ensures paint has occurred
 }
 
