@@ -34,7 +34,7 @@ Ralph reads `prd.json` and autonomously implements user stories one at a time.
 
 
 ## Golden Rules
-- Keep component files concise, clean and easy to understand.
+- Keep component files concise, clean and easy to understand. Under 300 lines of code. Suggest refactoring if needed.
 - Keep the codebase modular and easy to maintain.
 - Keep the codebase efficient and easy to optimize.
 - Keep the codebase secure and easy to audit.
