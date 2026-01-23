@@ -1,5 +1,5 @@
-// Screenshot utilities for capturing screen regions using html2canvas
-import html2canvas from 'html2canvas';
+// Screenshot utilities for capturing screen regions using modern-screenshot
+import { domToCanvas } from 'modern-screenshot';
 
 /**
  * Represents a captured screenshot region
@@ -27,6 +27,32 @@ function generateId(): string {
 }
 
 /**
+ * Create a placeholder canvas for when capture fails
+ */
+function createPlaceholderCanvas(width: number, height: number, x: number, y: number, scale: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext('2d');
+
+  if (ctx) {
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#00A3E1';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+    ctx.fillStyle = '#333';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Region: ${width}x${height}`, canvas.width / 2, canvas.height / 2 - 10);
+    ctx.fillText(`at (${x}, ${y})`, canvas.width / 2, canvas.height / 2 + 10);
+  }
+
+  return canvas;
+}
+
+/**
  * Capture a region of the screen as a PNG blob
  * @param x - X coordinate of the region's top-left corner
  * @param y - Y coordinate of the region's top-left corner
@@ -40,86 +66,60 @@ export async function captureRegion(
   width: number,
   height: number
 ): Promise<Blob> {
-
   // Calculate scale factor if region exceeds max dimension
   let scale = 1;
   if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
     scale = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
   }
 
-  // Capture the document body using html2canvas
-  // If html2canvas fails (e.g., due to unsupported CSS like lab() colors),
-  // fall back to creating a placeholder image
-  let canvas: HTMLCanvasElement;
+  let croppedCanvas: HTMLCanvasElement;
 
   try {
-    canvas = await html2canvas(document.body, {
-      useCORS: true,
-      logging: false,
-      x,
-      y,
-      width,
-      height,
+    // Capture the full document body using modern-screenshot
+    const fullCanvas = await domToCanvas(document.body, {
       scale,
-      windowWidth: document.documentElement.scrollWidth,
-      windowHeight: document.documentElement.scrollHeight,
-      // Ignore elements that might cause parsing issues
-      ignoreElements: (element) => {
+      filter: (element) => {
         // Ignore the feedback widget itself
-        return element.hasAttribute?.('data-feedback-widget') || false;
+        if (element instanceof Element) {
+          return !element.hasAttribute?.('data-feedback-widget');
+        }
+        return true;
       },
     });
-  } catch (html2canvasError) {
-    console.warn('[FeedbackWidget] html2canvas failed, using native capture:', html2canvasError);
 
-    // Fallback: Create a canvas and draw from the screen
-    // This won't capture the actual content but provides a placeholder
-    canvas = document.createElement('canvas');
-    canvas.width = Math.round(width * scale);
-    canvas.height = Math.round(height * scale);
-    const ctx = canvas.getContext('2d');
+    // Crop the canvas to the selected region
+    croppedCanvas = document.createElement('canvas');
+    croppedCanvas.width = Math.round(width * scale);
+    croppedCanvas.height = Math.round(height * scale);
+    const ctx = croppedCanvas.getContext('2d');
 
     if (ctx) {
-      // Draw a placeholder with the region info
-      ctx.fillStyle = '#f0f0f0';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = '#00A3E1';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
-      ctx.fillStyle = '#333';
-      ctx.font = '14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`Region: ${width}x${height}`, canvas.width / 2, canvas.height / 2 - 10);
-      ctx.fillText(`at (${x}, ${y})`, canvas.width / 2, canvas.height / 2 + 10);
+      ctx.drawImage(
+        fullCanvas,
+        x * scale,
+        y * scale,
+        width * scale,
+        height * scale,
+        0,
+        0,
+        croppedCanvas.width,
+        croppedCanvas.height
+      );
     }
+  } catch (captureError) {
+    console.warn('[FeedbackWidget] modern-screenshot failed, using placeholder:', captureError);
+    croppedCanvas = createPlaceholderCanvas(width, height, x, y, scale);
   }
 
   // Convert canvas to blob
   return new Promise((resolve) => {
-    canvas.toBlob(
+    croppedCanvas.toBlob(
       (blob) => {
         if (blob) {
           resolve(blob);
         } else {
-          // Fallback: create a placeholder blob if canvas conversion fails
           console.warn('[FeedbackWidget] Canvas toBlob failed, creating placeholder');
-          const fallbackCanvas = document.createElement('canvas');
-          fallbackCanvas.width = Math.max(1, Math.round(width * scale));
-          fallbackCanvas.height = Math.max(1, Math.round(height * scale));
-          const ctx = fallbackCanvas.getContext('2d');
-          if (ctx) {
-            ctx.fillStyle = '#f0f0f0';
-            ctx.fillRect(0, 0, fallbackCanvas.width, fallbackCanvas.height);
-            ctx.strokeStyle = '#00A3E1';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(1, 1, fallbackCanvas.width - 2, fallbackCanvas.height - 2);
-            ctx.fillStyle = '#333';
-            ctx.font = '14px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(`Region: ${width}x${height}`, fallbackCanvas.width / 2, fallbackCanvas.height / 2);
-          }
+          const fallbackCanvas = createPlaceholderCanvas(width, height, x, y, scale);
           fallbackCanvas.toBlob((fallbackBlob) => {
             resolve(fallbackBlob || new Blob(['placeholder'], { type: 'image/png' }));
           }, 'image/png');
