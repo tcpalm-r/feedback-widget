@@ -41,17 +41,6 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1a1f24;
-    --foreground: #ffffff;
-    --foreground-secondary: #D9D9D6;
-    --foreground-muted: #8f999f;
-    --primary: #ffffff;
-    --primary-foreground: #333F48;
-    --border: #3a444c;
-  }
-}
 
 body {
   background: var(--background);
