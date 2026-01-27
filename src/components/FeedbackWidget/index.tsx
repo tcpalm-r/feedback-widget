@@ -44,7 +44,20 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
   const containerListenersAddedRef = useRef(false);
   const isExpandedRef = useRef(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const prevExpandedRef = useRef(false);
   isExpandedRef.current = isExpanded;
+
+  // Track when transitioning from expanded to collapsed (closing)
+  useEffect(() => {
+    if (prevExpandedRef.current && !isExpanded) {
+      // Was expanded, now collapsed - we're closing
+      setIsClosing(true);
+      const timer = setTimeout(() => setIsClosing(false), 150); // Match CSS transition
+      return () => clearTimeout(timer);
+    }
+    prevExpandedRef.current = isExpanded;
+  }, [isExpanded]);
 
   const isClient = useIsClient();
   const { widgetPosition, isDragging, isSnapping, isInitialized, isAnimatingToCorner, widgetState } = useWidgetPosition(effectivePosition);
@@ -84,7 +97,8 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     // When dragging or animating to corner, use left/top positioning
     // When settled at corner, use corner-appropriate positioning (right/bottom for right/bottom corners)
     // This allows the widget to expand FROM the corner it's located in
-    const useAbsolutePosition = isDragging || isSnapping || isAnimatingToCorner || !isExpanded;
+    // When closing, keep corner-based positioning so collapse animates toward the corner
+    const useAbsolutePosition = isDragging || isSnapping || isAnimatingToCorner || (!isExpanded && !isClosing);
     let positionStyle: string;
     if (useAbsolutePosition) {
       positionStyle = `left: ${widgetPosition.x}px; top: ${widgetPosition.y}px; right: auto; bottom: auto;`;
@@ -184,7 +198,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
       handleFileUpload, setFeedbackType, setFeedbackMessage,
     }, capturedScreenshots);
   }, [
-    isExpanded, widgetPosition, widgetState.corner, isDragging, isSnapping, isAnimatingToCorner, isClient, isInitialized,
+    isExpanded, isClosing, widgetPosition, widgetState.corner, isDragging, isSnapping, isAnimatingToCorner, isClient, isInitialized,
     handleClose, handleSubmit, handleRetry, handleEnterSelectionMode, handleExitSelectionMode,
     handleToggleScreenshotList, handleClearAllScreenshots, handleRemoveScreenshot, handleShowScreenshotPreview, handleFileUpload,
     feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, isValidationError,
