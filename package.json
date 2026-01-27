@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "lsof -ti:3005 | xargs kill -9 2>/dev/null; next dev -p 3005",
+    "dev": "lsof -ti:3005 | xargs kill -9 2>/dev/null; rm -f .next/dev/lock; next dev -p 3005",
     "build": "next build && npm run build:widget",
     "build:widget": "vite build --config vite.widget.config.ts",
     "start": "next start",

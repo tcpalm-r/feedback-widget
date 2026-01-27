@@ -14,6 +14,11 @@ A Next.js project with a feedback widget component using the Ralph autonomous ag
 - `npm run build` - Build for production (also runs type checking)
 - `npm run lint` - Run ESLint
 
+## Dev Server
+- Always run dev server on port 3005
+- The dev script should kill any existing process on that port and remove the Next.js lock file before starting
+- Example: `"dev": "lsof -ti:3005 | xargs kill -9 2>/dev/null; rm -f .next/dev/lock; next dev -p 3005"`
+
 ## Project Structure
 - `src/app/` - App Router pages and API routes
 - `src/components/` - React components
