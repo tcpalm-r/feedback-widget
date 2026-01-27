@@ -67,7 +67,8 @@ export function getFeedbackFormHTML(
   capturedScreenshots: CapturedScreenshot[] = [],
   isScreenshotListExpanded: boolean = false,
   showRetryButton: boolean = true,
-  isValidationError: boolean = false
+  isValidationError: boolean = false,
+  initials: string = ''
 ): string {
   const typeOptions = feedbackTypeOptions
     .map(
@@ -125,10 +126,20 @@ export function getFeedbackFormHTML(
           </div>
         ` : ''}
 
-        <div class="feedback-form-field">
+        <div class="feedback-form-field feedback-form-row">
           <select id="feedback-type" name="type" class="feedback-select" ${isDisabled ? 'disabled' : ''}>
             ${typeOptions}
           </select>
+          <input
+            type="text"
+            id="feedback-initials"
+            name="initials"
+            class="feedback-initials"
+            placeholder="Initials"
+            maxlength="4"
+            value="${initials}"
+            ${isDisabled ? 'disabled' : ''}
+          />
         </div>
 
         <div class="feedback-form-field">

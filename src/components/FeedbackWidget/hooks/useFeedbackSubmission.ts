@@ -27,6 +27,7 @@ export function useFeedbackSubmission({
 }: UseFeedbackSubmissionProps) {
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('bug');
   const [feedbackMessage, setFeedbackMessageRaw] = useState('');
+  const [feedbackInitials, setFeedbackInitials] = useState('');
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isNetworkError, setIsNetworkError] = useState(false);
@@ -127,6 +128,7 @@ export function useFeedbackSubmission({
         app_id: effectiveAppId,
         type: feedbackType,
         message: feedbackMessage.trim(),
+        initials: feedbackInitials.trim() || undefined,
         elements: uploadedScreenshots.length > 0 ? uploadedScreenshots : undefined,
         metadata,
       },
@@ -137,6 +139,7 @@ export function useFeedbackSubmission({
       setSubmissionState('success');
       // Reset form fields
       setFeedbackMessage('');
+      setFeedbackInitials('');
       setFeedbackType('general');
       // Release screenshot blob URLs
       capturedScreenshots.forEach(screenshot => releaseScreenshot(screenshot));
@@ -153,7 +156,7 @@ export function useFeedbackSubmission({
       setErrorMessage(result.error || 'Something went wrong. Please try again.');
       setIsNetworkError(result.isNetworkError || false);
     }
-  }, [feedbackType, feedbackMessage, effectiveAppId, effectiveApiBaseUrl, collectMetadata, capturedScreenshots, setCapturedScreenshots, setDrawnRectangles, setIsScreenshotListExpanded, setIsExpanded]);
+  }, [feedbackType, feedbackMessage, feedbackInitials, effectiveAppId, effectiveApiBaseUrl, collectMetadata, capturedScreenshots, setCapturedScreenshots, setDrawnRectangles, setIsScreenshotListExpanded, setIsExpanded]);
 
   // Retry handler for error state
   const handleRetry = useCallback(() => {
@@ -165,6 +168,8 @@ export function useFeedbackSubmission({
     setFeedbackType,
     feedbackMessage,
     setFeedbackMessage,
+    feedbackInitials,
+    setFeedbackInitials,
     submissionState,
     setSubmissionState,
     errorMessage,

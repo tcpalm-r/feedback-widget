@@ -34,7 +34,7 @@ FeedbackWidget.init = function init(config: FeedbackWidgetConfig): void {
 export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: FeedbackWidgetProps = {}) {
   const globalConfig = getConfig();
   const effectiveAppId = appId ?? globalConfig?.appId ?? 'default';
-  const effectivePosition = position ?? globalConfig?.position ?? 'bottom-right';
+  const effectivePosition = position ?? globalConfig?.position ?? 'top-right';
   const effectiveJwtConfig = jwtConfig ?? globalConfig?.jwtConfig;
   const effectiveApiBaseUrl = apiBaseUrl ?? globalConfig?.apiBaseUrl;
 
@@ -76,6 +76,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
 
   const {
     feedbackType, setFeedbackType, feedbackMessage, setFeedbackMessage,
+    feedbackInitials, setFeedbackInitials,
     submissionState, errorMessage, isNetworkError, isValidationError,
     handleClose, handleSubmit, handleRetry,
   } = useFeedbackSubmission({
@@ -122,7 +123,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     }
     const hasRectanglesToDisplay = drawnRectangles.length > 0;
     const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : (hasRectanglesToDisplay ? getDisplayCanvasHTML() : '');
-    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError, isValidationError);
+    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError, isValidationError, feedbackInitials);
 
     let morphContainer = morphContainerRef.current;
     if (morphContainer && shadowRoot.contains(morphContainer)) {
@@ -133,10 +134,14 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
       const formLayer = morphContainer.querySelector('.form-layer');
       if (formLayer) {
         const existingTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
+        const existingInitials = formLayer.querySelector('#feedback-initials') as HTMLInputElement | null;
         const textareaHadFocus = shadowRoot.activeElement === existingTextarea;
+        const initialsHadFocus = shadowRoot.activeElement === existingInitials;
         const selectionStart = existingTextarea?.selectionStart;
         const selectionEnd = existingTextarea?.selectionEnd;
         const scrollTop = existingTextarea?.scrollTop;
+        const initialsSelectionStart = existingInitials?.selectionStart;
+        const initialsSelectionEnd = existingInitials?.selectionEnd;
         formLayer.innerHTML = formContent;
         if (textareaHadFocus) {
           const newTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
@@ -145,6 +150,14 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
             if (selectionStart !== undefined && selectionEnd !== undefined) newTextarea.setSelectionRange(selectionStart, selectionEnd);
             if (scrollTop !== undefined) newTextarea.scrollTop = scrollTop;
             newTextarea.setSelectionRange(newTextarea.selectionStart, newTextarea.selectionStart);
+          }
+        } else if (initialsHadFocus) {
+          const newInitials = formLayer.querySelector('#feedback-initials') as HTMLInputElement | null;
+          if (newInitials) {
+            newInitials.focus();
+            if (initialsSelectionStart !== undefined && initialsSelectionEnd !== undefined) {
+              newInitials.setSelectionRange(initialsSelectionStart, initialsSelectionEnd);
+            }
           }
         }
       }
@@ -195,15 +208,15 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     return setupFormEventListeners(shadowRoot, {
       handleClose, handleSubmit, handleRetry, handleEnterSelectionMode, handleExitSelectionMode,
       handleToggleScreenshotList, handleClearAllScreenshots, handleRemoveScreenshot, handleShowScreenshotPreview,
-      handleFileUpload, setFeedbackType, setFeedbackMessage,
+      handleFileUpload, setFeedbackType, setFeedbackMessage, setFeedbackInitials,
     }, capturedScreenshots);
   }, [
     isExpanded, isClosing, widgetPosition, widgetState.corner, isDragging, isSnapping, isAnimatingToCorner, isClient, isInitialized,
     handleClose, handleSubmit, handleRetry, handleEnterSelectionMode, handleExitSelectionMode,
     handleToggleScreenshotList, handleClearAllScreenshots, handleRemoveScreenshot, handleShowScreenshotPreview, handleFileUpload,
-    feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, isValidationError,
+    feedbackType, feedbackMessage, feedbackInitials, submissionState, errorMessage, isNetworkError, isValidationError,
     isSelectionMode, capturedScreenshots, drawnRectangles, isScreenshotListExpanded, selectionWarning,
-    setFeedbackType, setFeedbackMessage, isSelectionModeRef, handleMouseDownRef, hasDraggedRef,
+    setFeedbackType, setFeedbackMessage, setFeedbackInitials, isSelectionModeRef, handleMouseDownRef, hasDraggedRef,
   ]);
 
   return <div ref={hostRef} data-feedback-widget />;

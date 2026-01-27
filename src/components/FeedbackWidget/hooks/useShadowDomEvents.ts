@@ -15,6 +15,7 @@ interface ShadowDomEventHandlers {
   handleFileUpload: (files: FileList | null | undefined) => void;
   setFeedbackType: (type: FeedbackType) => void;
   setFeedbackMessage: (msg: string) => void;
+  setFeedbackInitials: (initials: string) => void;
 }
 
 export function setupFormEventListeners(
@@ -24,12 +25,13 @@ export function setupFormEventListeners(
 ): () => void {
   const { handleClose, handleSubmit, handleRetry, handleEnterSelectionMode, handleToggleScreenshotList,
     handleClearAllScreenshots, handleRemoveScreenshot, handleShowScreenshotPreview, handleFileUpload,
-    setFeedbackType, setFeedbackMessage } = handlers;
+    setFeedbackType, setFeedbackMessage, setFeedbackInitials } = handlers;
 
   const closeButton = shadowRoot.querySelector('.feedback-close-button');
   const form = shadowRoot.querySelector('.feedback-form-body');
   const typeSelect = shadowRoot.querySelector('#feedback-type') as HTMLSelectElement;
   const messageTextarea = shadowRoot.querySelector('#feedback-message') as HTMLTextAreaElement;
+  const initialsInput = shadowRoot.querySelector('#feedback-initials') as HTMLInputElement;
   const retryButton = shadowRoot.querySelector('.feedback-retry-button');
   const selectOnScreenButton = shadowRoot.querySelector('.feedback-select-button');
   const screenshotMenu = shadowRoot.querySelector('.feedback-screenshot-menu');
@@ -47,6 +49,10 @@ export function setupFormEventListeners(
     messageTextarea.addEventListener('keydown', (e) => e.stopPropagation());
     messageTextarea.addEventListener('keyup', (e) => e.stopPropagation());
     messageTextarea.addEventListener('keypress', (e) => e.stopPropagation());
+  }
+  if (initialsInput) {
+    initialsInput.addEventListener('input', (e) => setFeedbackInitials((e.target as HTMLInputElement).value));
+    initialsInput.addEventListener('keydown', (e) => e.stopPropagation());
   }
   if (retryButton) retryButton.addEventListener('click', handleRetry);
 

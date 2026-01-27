@@ -9,6 +9,7 @@ export interface FeedbackSubmission {
   app_id: string;
   type: string;
   message: string;
+  initials?: string;
   elements?: unknown[];
   metadata: FeedbackMetadata;
 }
