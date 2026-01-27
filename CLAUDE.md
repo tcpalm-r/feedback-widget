@@ -10,7 +10,7 @@ A Next.js project with a feedback widget component using the Ralph autonomous ag
 - npm for package management
 
 ## Key Commands
-- `npm run dev` - Start development server on port 3000
+- `npm run dev` - Start development server on port 3005 (auto-kills existing process)
 - `npm run build` - Build for production (also runs type checking)
 - `npm run lint` - Run ESLint
 

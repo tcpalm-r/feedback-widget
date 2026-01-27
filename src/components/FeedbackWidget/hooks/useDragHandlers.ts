@@ -63,9 +63,9 @@ export function useDragHandlers({ widgetPosition, isExpanded }: UseDragHandlersP
     // Only update position if we've actually started dragging
     if (!dragStartedRef.current) return;
 
-    // Constrain to viewport
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    // Constrain to viewport (use clientWidth/clientHeight to exclude scrollbar)
+    const viewportWidth = document.documentElement.clientWidth;
+    const viewportHeight = document.documentElement.clientHeight;
     const newX = Math.max(
       PADDING,
       Math.min(dragStartPositionRef.current.x + deltaX, viewportWidth - WIDGET_SIZE - PADDING)

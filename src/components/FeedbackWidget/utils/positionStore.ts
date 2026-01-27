@@ -45,8 +45,10 @@ export function getPositionForCorner(c: WidgetCorner): { x: number; y: number } 
     return { x: 0, y: 0 };
   }
 
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
+  // Use clientWidth/clientHeight to exclude scrollbar from calculations
+  // This matches how CSS right/bottom positioning works
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = document.documentElement.clientHeight;
 
   switch (c) {
     case 'top-left':
@@ -72,8 +74,9 @@ export function getExpandedPositionForCorner(c: WidgetCorner): { x: number; y: n
     return { x: 0, y: 0 };
   }
 
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
+  // Use clientWidth/clientHeight to exclude scrollbar from calculations
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = document.documentElement.clientHeight;
 
   switch (c) {
     case 'top-left':
@@ -229,8 +232,9 @@ function setupResizeListener() {
   resizeListenerAdded = true;
 
   window.addEventListener('resize', () => {
-    const newWidth = window.innerWidth;
-    const newHeight = window.innerHeight;
+    // Use clientWidth/clientHeight to exclude scrollbar
+    const newWidth = document.documentElement.clientWidth;
+    const newHeight = document.documentElement.clientHeight;
 
     // Only emit change if size actually changed
     if (newWidth !== lastViewportWidth || newHeight !== lastViewportHeight) {
@@ -244,8 +248,8 @@ function setupResizeListener() {
   });
 
   // Initialize viewport size
-  lastViewportWidth = window.innerWidth;
-  lastViewportHeight = window.innerHeight;
+  lastViewportWidth = document.documentElement.clientWidth;
+  lastViewportHeight = document.documentElement.clientHeight;
 }
 
 /**

@@ -57,8 +57,9 @@ export function clearCorner(): void {
  * Determine nearest corner based on x/y position
  */
 export function getNearestCorner(x: number, y: number): WidgetCorner {
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
-  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 600;
+  // Use clientWidth/clientHeight to exclude scrollbar from calculations
+  const viewportWidth = typeof window !== 'undefined' ? document.documentElement.clientWidth : 800;
+  const viewportHeight = typeof window !== 'undefined' ? document.documentElement.clientHeight : 600;
 
   const isLeft = x < viewportWidth / 2;
   const isTop = y < viewportHeight / 2;
