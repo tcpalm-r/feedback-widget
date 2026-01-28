@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { FeedbackType, SubmissionState } from '../FeedbackForm';
 import { submitFeedback, FeedbackMetadata, SubmitFeedbackResult, uploadScreenshot } from '../../../lib/feedbackApi';
 import { detectUserId, JwtConfig } from '../utils/jwt';
@@ -25,6 +25,8 @@ export function useFeedbackSubmission({
   setIsScreenshotListExpanded,
   setIsExpanded,
 }: UseFeedbackSubmissionProps) {
+  const INITIALS_STORAGE_KEY = 'feedback-widget-initials';
+
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('bug');
   const [feedbackMessage, setFeedbackMessageRaw] = useState('');
   const [feedbackInitials, setFeedbackInitials] = useState('');
@@ -33,6 +35,18 @@ export function useFeedbackSubmission({
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [isValidationError, setIsValidationError] = useState(false);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load cached initials on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(INITIALS_STORAGE_KEY);
+      if (cached) {
+        setFeedbackInitials(cached);
+      }
+    } catch {
+      // localStorage not available
+    }
+  }, []);
 
   // Wrapper that clears validation error when user types
   const setFeedbackMessage = useCallback((msg: string) => {
@@ -137,20 +151,27 @@ export function useFeedbackSubmission({
 
     if (result.success) {
       setSubmissionState('success');
-      // Reset form fields
+      // Cache initials for future submissions
+      if (feedbackInitials.trim()) {
+        try {
+          localStorage.setItem(INITIALS_STORAGE_KEY, feedbackInitials.trim());
+        } catch {
+          // localStorage not available
+        }
+      }
+      // Reset form fields (keep initials for next submission)
       setFeedbackMessage('');
-      setFeedbackInitials('');
       setFeedbackType('general');
       // Release screenshot blob URLs
       capturedScreenshots.forEach(screenshot => releaseScreenshot(screenshot));
       setCapturedScreenshots([]);
       setDrawnRectangles([]);
       setIsScreenshotListExpanded(false);
-      // Auto-collapse after 2 seconds
+      // Auto-collapse quickly after success
       autoCloseTimerRef.current = setTimeout(() => {
         setIsExpanded(false);
         setSubmissionState('idle');
-      }, 2000);
+      }, 600);
     } else {
       setSubmissionState('error');
       setErrorMessage(result.error || 'Something went wrong. Please try again.');

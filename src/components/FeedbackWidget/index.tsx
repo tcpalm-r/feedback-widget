@@ -14,7 +14,7 @@ import { useCanvasDrawing } from './hooks/useCanvasDrawing';
 import { useFeedbackSubmission } from './hooks/useFeedbackSubmission';
 import { setupFormEventListeners, setupContainerListeners } from './hooks/useShadowDomEvents';
 
-const MessageSquareIcon = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
+const MessageSquareIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
 
 export interface FeedbackWidgetProps {
   position?: WidgetPosition;
@@ -59,6 +59,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     prevExpandedRef.current = isExpanded;
   }, [isExpanded]);
 
+
   const isClient = useIsClient();
   const { widgetPosition, isDragging, isSnapping, isInitialized, isAnimatingToCorner, widgetState } = useWidgetPosition(effectivePosition);
   const { handleMouseDownRef, hasDraggedRef } = useDragHandlers({ widgetPosition, isExpanded });
@@ -96,10 +97,10 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     const animatingClass = isAnimatingToCorner ? 'animating-to-corner' : '';
 
     // When dragging or animating to corner, use left/top positioning
-    // When settled at corner, use corner-appropriate positioning (right/bottom for right/bottom corners)
-    // This allows the widget to expand FROM the corner it's located in
-    // When closing, keep corner-based positioning so collapse animates toward the corner
-    const useAbsolutePosition = isDragging || isSnapping || isAnimatingToCorner || (!isExpanded && !isClosing);
+    // When settled (expanded or collapsed), use corner-appropriate positioning (right/bottom for right/bottom corners)
+    // This allows the widget to expand FROM the corner it's located in and collapse TOWARD it
+    // Using corner-based positioning when collapsed ensures consistent layout without position-switch glitches
+    const useAbsolutePosition = isDragging || isSnapping || isAnimatingToCorner;
     let positionStyle: string;
     if (useAbsolutePosition) {
       positionStyle = `left: ${widgetPosition.x}px; top: ${widgetPosition.y}px; right: auto; bottom: auto;`;
@@ -130,6 +131,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
       morphContainer.className = `feedback-widget-morph ${expandedClass} ${draggingClass} ${initializingClass} ${animatingClass}`.trim();
       morphContainer.style.cssText = positionStyle;
       morphContainer.setAttribute('aria-expanded', String(isExpanded));
+
 
       const formLayer = morphContainer.querySelector('.form-layer');
       if (formLayer) {
