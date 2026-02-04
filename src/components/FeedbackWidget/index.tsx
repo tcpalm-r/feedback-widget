@@ -51,9 +51,8 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
   // Track when transitioning from expanded to collapsed (closing)
   useEffect(() => {
     if (prevExpandedRef.current && !isExpanded) {
-      // Was expanded, now collapsed - we're closing
       setIsClosing(true);
-      const timer = setTimeout(() => setIsClosing(false), 150); // Match CSS transition
+      const timer = setTimeout(() => setIsClosing(false), 150);
       return () => clearTimeout(timer);
     }
     prevExpandedRef.current = isExpanded;
@@ -132,33 +131,36 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
       morphContainer.style.cssText = positionStyle;
       morphContainer.setAttribute('aria-expanded', String(isExpanded));
 
-
       const formLayer = morphContainer.querySelector('.form-layer');
       if (formLayer) {
-        const existingTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
-        const existingInitials = formLayer.querySelector('#feedback-initials') as HTMLInputElement | null;
-        const textareaHadFocus = shadowRoot.activeElement === existingTextarea;
-        const initialsHadFocus = shadowRoot.activeElement === existingInitials;
-        const selectionStart = existingTextarea?.selectionStart;
-        const selectionEnd = existingTextarea?.selectionEnd;
-        const scrollTop = existingTextarea?.scrollTop;
-        const initialsSelectionStart = existingInitials?.selectionStart;
-        const initialsSelectionEnd = existingInitials?.selectionEnd;
-        formLayer.innerHTML = formContent;
-        if (textareaHadFocus) {
-          const newTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
-          if (newTextarea) {
-            newTextarea.focus();
-            if (selectionStart !== undefined && selectionEnd !== undefined) newTextarea.setSelectionRange(selectionStart, selectionEnd);
-            if (scrollTop !== undefined) newTextarea.scrollTop = scrollTop;
-            newTextarea.setSelectionRange(newTextarea.selectionStart, newTextarea.selectionStart);
-          }
-        } else if (initialsHadFocus) {
-          const newInitials = formLayer.querySelector('#feedback-initials') as HTMLInputElement | null;
-          if (newInitials) {
-            newInitials.focus();
-            if (initialsSelectionStart !== undefined && initialsSelectionEnd !== undefined) {
-              newInitials.setSelectionRange(initialsSelectionStart, initialsSelectionEnd);
+        // ONLY update formLayer.innerHTML when expanded to avoid compositor bug
+        // Updating innerHTML during collapse transition causes SVG repaint issues
+        if (isExpanded) {
+          const existingTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
+          const existingInitials = formLayer.querySelector('#feedback-initials') as HTMLInputElement | null;
+          const textareaHadFocus = shadowRoot.activeElement === existingTextarea;
+          const initialsHadFocus = shadowRoot.activeElement === existingInitials;
+          const selectionStart = existingTextarea?.selectionStart;
+          const selectionEnd = existingTextarea?.selectionEnd;
+          const scrollTop = existingTextarea?.scrollTop;
+          const initialsSelectionStart = existingInitials?.selectionStart;
+          const initialsSelectionEnd = existingInitials?.selectionEnd;
+          formLayer.innerHTML = formContent;
+          if (textareaHadFocus) {
+            const newTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
+            if (newTextarea) {
+              newTextarea.focus();
+              if (selectionStart !== undefined && selectionEnd !== undefined) newTextarea.setSelectionRange(selectionStart, selectionEnd);
+              if (scrollTop !== undefined) newTextarea.scrollTop = scrollTop;
+              newTextarea.setSelectionRange(newTextarea.selectionStart, newTextarea.selectionStart);
+            }
+          } else if (initialsHadFocus) {
+            const newInitials = formLayer.querySelector('#feedback-initials') as HTMLInputElement | null;
+            if (newInitials) {
+              newInitials.focus();
+              if (initialsSelectionStart !== undefined && initialsSelectionEnd !== undefined) {
+                newInitials.setSelectionRange(initialsSelectionStart, initialsSelectionEnd);
+              }
             }
           }
         }

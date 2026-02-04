@@ -167,7 +167,7 @@ export function useFeedbackSubmission({
       setCapturedScreenshots([]);
       setDrawnRectangles([]);
       setIsScreenshotListExpanded(false);
-      // Auto-collapse quickly after success
+      // Auto-collapse after success
       autoCloseTimerRef.current = setTimeout(() => {
         setIsExpanded(false);
         setSubmissionState('idle');
