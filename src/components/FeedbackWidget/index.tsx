@@ -77,7 +77,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
   const {
     feedbackType, setFeedbackType, feedbackMessage, setFeedbackMessage,
     feedbackInitials, setFeedbackInitials,
-    submissionState, errorMessage, isNetworkError, isValidationError,
+    submissionState, errorMessage, isNetworkError, isValidationError, isInitialsValidationError,
     handleClose, handleSubmit, handleRetry,
   } = useFeedbackSubmission({
     effectiveAppId, effectiveApiBaseUrl, effectiveJwtConfig, capturedScreenshots, setCapturedScreenshots,
@@ -123,7 +123,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     }
     const hasRectanglesToDisplay = drawnRectangles.length > 0;
     const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : (hasRectanglesToDisplay ? getDisplayCanvasHTML() : '');
-    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError, isValidationError, feedbackInitials);
+    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError && !isInitialsValidationError, isValidationError, feedbackInitials, isInitialsValidationError);
 
     let morphContainer = morphContainerRef.current;
     if (morphContainer && shadowRoot.contains(morphContainer)) {
@@ -218,7 +218,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     isExpanded, isClosing, widgetPosition, widgetState.corner, isDragging, isSnapping, isAnimatingToCorner, isClient, isInitialized,
     handleClose, handleSubmit, handleRetry, handleEnterSelectionMode, handleExitSelectionMode,
     handleToggleScreenshotList, handleClearAllScreenshots, handleRemoveScreenshot, handleShowScreenshotPreview, handleFileUpload,
-    feedbackType, feedbackMessage, feedbackInitials, submissionState, errorMessage, isNetworkError, isValidationError,
+    feedbackType, feedbackMessage, feedbackInitials, submissionState, errorMessage, isNetworkError, isValidationError, isInitialsValidationError,
     isSelectionMode, capturedScreenshots, drawnRectangles, isScreenshotListExpanded, selectionWarning,
     setFeedbackType, setFeedbackMessage, setFeedbackInitials, isSelectionModeRef, handleMouseDownRef, hasDraggedRef,
   ]);

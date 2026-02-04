@@ -29,11 +29,12 @@ export function useFeedbackSubmission({
 
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('bug');
   const [feedbackMessage, setFeedbackMessageRaw] = useState('');
-  const [feedbackInitials, setFeedbackInitials] = useState('');
+  const [feedbackInitials, setFeedbackInitialsRaw] = useState('');
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [isValidationError, setIsValidationError] = useState(false);
+  const [isInitialsValidationError, setIsInitialsValidationError] = useState(false);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load cached initials on mount
@@ -57,6 +58,16 @@ export function useFeedbackSubmission({
       setErrorMessage('');
     }
   }, [isValidationError]);
+
+  // Wrapper that clears initials validation error when user types
+  const setFeedbackInitials = useCallback((initials: string) => {
+    setFeedbackInitialsRaw(initials);
+    if (isInitialsValidationError) {
+      setIsInitialsValidationError(false);
+      setSubmissionState('idle');
+      setErrorMessage('');
+    }
+  }, [isInitialsValidationError]);
 
   // Collect metadata
   const collectMetadata = useCallback((): FeedbackMetadata => {
@@ -86,12 +97,15 @@ export function useFeedbackSubmission({
       e.preventDefault();
     }
 
-    // Validate message is not empty
-    if (!feedbackMessage.trim()) {
-      setSubmissionState('error');
-      setErrorMessage('Please enter a message');
-      setIsNetworkError(false);
-      setIsValidationError(true);
+    // Validate both fields - just show red on empty fields
+    const initialsEmpty = !feedbackInitials.trim();
+    const messageEmpty = !feedbackMessage.trim();
+
+    if (initialsEmpty || messageEmpty) {
+      setIsInitialsValidationError(initialsEmpty);
+      setIsValidationError(messageEmpty);
+      setSubmissionState('idle');
+      setErrorMessage('');
       return;
     }
 
@@ -99,6 +113,7 @@ export function useFeedbackSubmission({
     setErrorMessage('');
     setIsNetworkError(false);
     setIsValidationError(false);
+    setIsInitialsValidationError(false);
 
     const metadata = collectMetadata();
 
@@ -196,6 +211,7 @@ export function useFeedbackSubmission({
     errorMessage,
     isNetworkError,
     isValidationError,
+    isInitialsValidationError,
     autoCloseTimerRef,
     handleClose,
     handleSubmit,

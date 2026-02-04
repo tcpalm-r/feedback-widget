@@ -68,7 +68,8 @@ export function getFeedbackFormHTML(
   isScreenshotListExpanded: boolean = false,
   showRetryButton: boolean = true,
   isValidationError: boolean = false,
-  initials: string = ''
+  initials: string = '',
+  isInitialsValidationError: boolean = false
 ): string {
   const typeOptions = feedbackTypeOptions
     .map(
@@ -134,7 +135,7 @@ export function getFeedbackFormHTML(
             type="text"
             id="feedback-initials"
             name="initials"
-            class="feedback-initials"
+            class="feedback-initials ${isInitialsValidationError ? 'error' : ''}"
             placeholder="Initials"
             maxlength="4"
             value="${initials}"
@@ -147,7 +148,7 @@ export function getFeedbackFormHTML(
             id="feedback-message"
             name="message"
             class="feedback-textarea ${isValidationError ? 'error' : ''}"
-            placeholder="${isValidationError ? errorMessage : 'Tell us what\'s on your mind...'}"
+            placeholder="Tell us what's on your mind..."
             rows="1"
             ${isDisabled ? 'disabled' : ''}
           >${message}</textarea>

@@ -122,11 +122,13 @@ export const getWidgetStyles = (): string => `
     opacity: 1;
     transition: opacity 0.15s ease;
     pointer-events: auto;
+    z-index: 2;
   }
 
   .expanded .button-layer {
     opacity: 0;
     pointer-events: none;
+    z-index: 0;
   }
 
   .button-layer svg {
@@ -159,11 +161,13 @@ export const getWidgetStyles = (): string => `
     pointer-events: none;
     display: flex;
     flex-direction: column;
+    z-index: 1;
   }
 
   .expanded .form-layer {
     opacity: 1;
     pointer-events: auto;
+    z-index: 3;
   }
 
   /* Collapse transition - no delay */
@@ -313,6 +317,21 @@ export const getWidgetStyles = (): string => `
     background-color: ${colors.gray50};
     cursor: not-allowed;
     opacity: 0.7;
+  }
+
+  .feedback-initials.error {
+    border-color: #dc2626;
+    background-color: #fef2f2;
+  }
+
+  .feedback-initials.error::placeholder {
+    color: #dc2626;
+    text-transform: none;
+  }
+
+  .feedback-initials.error:focus {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
   }
 
   .feedback-label {
