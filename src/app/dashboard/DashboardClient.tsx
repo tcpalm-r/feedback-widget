@@ -7,6 +7,7 @@ interface FeedbackItem {
   app_id: string;
   type: string;
   message: string;
+  initials: string | null;
   elements: Array<{
     url: string;
     region?: { x: number; y: number; width: number; height: number };
@@ -58,6 +59,7 @@ export default function DashboardClient({ grouped, total }: Props) {
                 <tr style={{ textAlign: "left", borderBottom: "2px solid #333" }}>
                   <th style={{ padding: "8px" }}>Date</th>
                   <th style={{ padding: "8px" }}>Type</th>
+                  <th style={{ padding: "8px" }}>Initials</th>
                   <th style={{ padding: "8px" }}>Message</th>
                   <th style={{ padding: "8px" }}>Screenshots</th>
                   <th style={{ padding: "8px" }}>Source URL</th>
@@ -83,6 +85,9 @@ export default function DashboardClient({ grouped, total }: Props) {
                       >
                         {item.type}
                       </span>
+                    </td>
+                    <td style={{ padding: "8px", textTransform: "uppercase" }}>
+                      {item.initials || "-"}
                     </td>
                     <td style={{ padding: "8px", maxWidth: "400px" }}>{item.message}</td>
                     <td style={{ padding: "8px" }}>

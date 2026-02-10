@@ -290,15 +290,17 @@ export function getSnapshot(): { corner: WidgetCorner; position: { x: number; y:
   return cachedSnapshot;
 }
 
-export function getServerSnapshot(): { corner: WidgetCorner; position: { x: number; y: number }; isDragging: boolean; isSnapping: boolean; isAnimatingToCorner: boolean; isInitialized: boolean } {
-  return {
-    corner: 'bottom-right',
-    position: { x: 0, y: 0 },
-    isDragging: false,
-    isSnapping: false,
-    isAnimatingToCorner: false,
-    isInitialized: false,
-  };
+const SERVER_SNAPSHOT = {
+  corner: 'bottom-right' as WidgetCorner,
+  position: { x: 0, y: 0 },
+  isDragging: false,
+  isSnapping: false,
+  isAnimatingToCorner: false,
+  isInitialized: false,
+};
+
+export function getServerSnapshot() {
+  return SERVER_SNAPSHOT;
 }
 
 // Re-export type

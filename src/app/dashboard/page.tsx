@@ -6,6 +6,7 @@ interface FeedbackItem {
   app_id: string;
   type: string;
   message: string;
+  initials: string | null;
   elements: Array<{
     url: string;
     region?: { x: number; y: number; width: number; height: number };

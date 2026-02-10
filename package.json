@@ -1,26 +1,60 @@
 {
-  "name": "feedback-widget",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@danainnovations/feedback-widget",
+  "version": "0.2.5",
+  "description": "A draggable feedback widget with screenshot capture for React applications",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./widget": "./dist/entry.iife.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "bin": {
+    "feedback-widget": "./dist/cli.js"
+  },
+  "sideEffects": false,
   "scripts": {
     "dev": "lsof -ti:3005 | xargs kill -9 2>/dev/null; rm -f .next/dev/lock; next dev -p 3005",
     "build": "next build && npm run build:widget",
     "build:widget": "vite build --config vite.widget.config.ts",
+    "build:package": "rm -rf dist && tsup && node -e \"const fs=require('fs'); ['dist/index.js','dist/index.mjs'].forEach(f=>{const c=fs.readFileSync(f,'utf8'); fs.writeFileSync(f,'\\\"use client\\\";\\n'+c)})\"",
+    "prepublishOnly": "npm run build:package",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": false
+    },
+    "react-dom": {
+      "optional": false
+    }
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.90.1",
-    "lucide-react": "^0.562.0",
-    "modern-screenshot": "^4.6.7",
-    "next": "16.1.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "modern-screenshot": "^4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "@supabase/supabase-js": "^2.90.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.1",
@@ -31,8 +65,26 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "jsdom": "^27.4.0",
+    "lucide-react": "^0.562.0",
+    "next": "16.1.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "tailwindcss": "^4",
+    "tsup": "^8.5.1",
     "typescript": "^5",
     "vitest": "^4.0.17"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danainnovations/feedback-widget.git"
+  },
+  "keywords": [
+    "feedback",
+    "widget",
+    "react",
+    "screenshot",
+    "bug-report"
+  ],
+  "author": "Dana Innovations",
+  "license": "MIT"
 }

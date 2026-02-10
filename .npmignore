@@ -1,0 +1,48 @@
+# Source files (dist is published instead)
+src/
+scripts/
+tests/
+e2e/
+
+# Config files
+*.config.ts
+*.config.js
+tsconfig*.json
+.eslintrc*
+.prettierrc*
+.editorconfig
+
+# Next.js
+.next/
+out/
+
+# Development
+.env*
+*.log
+.DS_Store
+
+# Tests
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+playwright.config.ts
+playwright-report/
+test-results/
+
+# IDE
+.vscode/
+.idea/
+
+# Docs (except README)
+CLAUDE.md
+prd.json
+
+# Git
+.git/
+.gitignore
+
+# Build artifacts not needed
+public/
+vite.widget.config.ts

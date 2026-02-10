@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     app_id?: string;
     type?: string;
     message?: string;
+    initials?: string;
     elements?: unknown[];
     metadata?: Record<string, unknown>;
   };
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
   const appId = typeof payload.app_id === 'string' ? payload.app_id.trim() : '';
   const message = typeof payload.message === 'string' ? payload.message.trim() : '';
   const type = typeof payload.type === 'string' ? payload.type : 'general';
+  const initials = typeof payload.initials === 'string' ? payload.initials.trim() : null;
   const metadata =
     payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {};
 
@@ -58,6 +60,7 @@ export async function POST(request: Request) {
         app_id: appId,
         type,
         message,
+        initials: initials || null,
         elements: payload.elements ?? null,
         metadata: {
           ...metadata,
