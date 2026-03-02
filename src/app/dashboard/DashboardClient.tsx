@@ -80,13 +80,13 @@ export default function DashboardClient({ grouped, total }: Props) {
           {expanded[projectId] && (
             <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
               <colgroup>
-                <col style={{ width: "180px" }} />
-                <col style={{ width: "80px" }} />
-                <col style={{ width: "70px" }} />
-                <col />
-                <col style={{ width: "90px" }} />
-                <col style={{ width: "180px" }} />
-                <col style={{ width: "110px" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "6%" }} />
+                <col style={{ width: "30%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "12%" }} />
               </colgroup>
               <thead>
                 <tr style={{ textAlign: "left", borderBottom: "2px solid #333" }}>
@@ -108,7 +108,7 @@ export default function DashboardClient({ grouped, total }: Props) {
                         border: "none",
                         cursor: "pointer",
                         padding: 0,
-                        textAlign: "center",
+                        width: "100%",
                       }}
                     >
                       <option value="all">Resolved?</option>
