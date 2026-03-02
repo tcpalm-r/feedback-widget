@@ -43,7 +43,7 @@ const LoaderIcon = `
   </svg>
 `;
 
-export type FeedbackType = 'bug' | 'feature' | 'general';
+export type FeedbackType = 'bug' | 'feature' | 'future';
 
 export type SubmissionState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -54,8 +54,8 @@ export interface FeedbackFormData {
 
 export const feedbackTypeOptions: { value: FeedbackType; label: string }[] = [
   { value: 'bug', label: 'Bug' },
-  { value: 'feature', label: 'Feature (Suggestion)' },
-  { value: 'general', label: 'General' },
+  { value: 'feature', label: 'Feature' },
+  { value: 'future', label: 'Future Idea (Later Version)' },
 ];
 
 export function getFeedbackFormHTML(

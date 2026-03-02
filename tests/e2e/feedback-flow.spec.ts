@@ -623,7 +623,7 @@ test.describe('Feedback Widget', () => {
     await waitForShadowElement(page, '.feedback-submit-button');
 
     // Fill in the form without capturing any screenshots
-    await selectShadowOption(page, '#feedback-type', 'general');
+    await selectShadowOption(page, '#feedback-type', 'future');
     await fillShadowInput(page, '#feedback-message', 'Feedback without any screenshots attached');
 
     // Verify no screenshot badge is showing

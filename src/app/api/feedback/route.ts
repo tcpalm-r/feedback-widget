@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
   const appId = typeof payload.app_id === 'string' ? payload.app_id.trim() : '';
   const message = typeof payload.message === 'string' ? payload.message.trim() : '';
-  const type = typeof payload.type === 'string' ? payload.type : 'general';
+  const type = typeof payload.type === 'string' ? payload.type : 'bug';
   const initials = typeof payload.initials === 'string' ? payload.initials.trim() : null;
   const metadata =
     payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {};

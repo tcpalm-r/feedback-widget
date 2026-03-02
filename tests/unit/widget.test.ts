@@ -280,13 +280,13 @@ describe('Widget Render and Form Validation', () => {
     })
 
     it('should render form with message content', () => {
-      const html = getFeedbackFormHTML('general', 'Test message content')
+      const html = getFeedbackFormHTML('future', 'Test message content')
 
       expect(html).toContain('Test message content')
     })
 
     it('should render loading state', () => {
-      const html = getFeedbackFormHTML('general', '', 'loading')
+      const html = getFeedbackFormHTML('future', '', 'loading')
 
       expect(html).toContain('Submitting...')
       expect(html).toContain('feedback-spinner')
@@ -294,7 +294,7 @@ describe('Widget Render and Form Validation', () => {
     })
 
     it('should render success state', () => {
-      const html = getFeedbackFormHTML('general', '', 'success')
+      const html = getFeedbackFormHTML('future', '', 'success')
 
       expect(html).toContain('Thank You!')
       expect(html).toContain('feedback-success-message')
@@ -302,7 +302,7 @@ describe('Widget Render and Form Validation', () => {
     })
 
     it('should render error state with message', () => {
-      const html = getFeedbackFormHTML('general', '', 'error', 'Network error')
+      const html = getFeedbackFormHTML('future', '', 'error', 'Network error')
 
       expect(html).toContain('feedback-error-banner')
       expect(html).toContain('Network error')
@@ -310,7 +310,7 @@ describe('Widget Render and Form Validation', () => {
     })
 
     it('should render error state with default message', () => {
-      const html = getFeedbackFormHTML('general', '', 'error')
+      const html = getFeedbackFormHTML('future', '', 'error')
 
       expect(html).toContain('Something went wrong. Please try again.')
     })
@@ -325,7 +325,7 @@ describe('Widget Render and Form Validation', () => {
     })
 
     it('should disable form elements during loading', () => {
-      const html = getFeedbackFormHTML('general', '', 'loading')
+      const html = getFeedbackFormHTML('future', '', 'loading')
 
       // Count disabled attributes (should be present on select, textarea, submit button, close button)
       const disabledCount = (html.match(/disabled/g) || []).length
@@ -346,7 +346,7 @@ describe('Widget Render and Form Validation', () => {
 
     it('should display error when message is empty (via error state)', () => {
       // When validation fails, the form shows error state
-      const html = getFeedbackFormHTML('general', '', 'error', 'Please enter a message')
+      const html = getFeedbackFormHTML('future', '', 'error', 'Please enter a message')
 
       expect(html).toContain('Please enter a message')
       expect(html).toContain('feedback-error-banner')
@@ -369,8 +369,8 @@ describe('Widget Render and Form Validation', () => {
       expect(feedbackTypeOptions.find((o) => o.value === 'feature')).toBeDefined()
     })
 
-    it('should have General option', () => {
-      expect(feedbackTypeOptions.find((o) => o.value === 'general')).toBeDefined()
+    it('should have Future Idea option', () => {
+      expect(feedbackTypeOptions.find((o) => o.value === 'future')).toBeDefined()
     })
 
     it('should have exactly 3 options', () => {
