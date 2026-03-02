@@ -31,6 +31,7 @@ export default function DashboardClient({ grouped, total }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [items, setItems] = useState(grouped);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [resolvedFilter, setResolvedFilter] = useState<"all" | "unresolved" | "resolved">("all");
 
   const toggle = (projectId: string) => {
     setExpanded((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
@@ -60,7 +61,7 @@ export default function DashboardClient({ grouped, total }: Props) {
     <div style={{ fontFamily: "monospace", padding: "20px", maxWidth: "1200px" }}>
       <h1 style={{ fontWeight: "bold" }}>User Feedback</h1>
       <p>Total: {total} entries across {projects.length} projects</p>
-      <hr />
+      <hr style={{ marginBottom: "16px" }} />
 
       {projects.map((projectId) => (
         <div key={projectId} style={{ marginBottom: "20px" }}>
@@ -86,11 +87,36 @@ export default function DashboardClient({ grouped, total }: Props) {
                   <th style={{ padding: "8px" }}>Message</th>
                   <th style={{ padding: "8px" }}>Screenshots</th>
                   <th style={{ padding: "8px" }}>Source URL</th>
-                  <th style={{ padding: "8px" }}>Resolved</th>
+                  <th style={{ padding: "8px", textAlign: "center" }}>
+                    <select
+                      value={resolvedFilter}
+                      onChange={(e) => setResolvedFilter(e.target.value as "all" | "unresolved" | "resolved")}
+                      style={{
+                        fontFamily: "monospace",
+                        fontWeight: "bold",
+                        fontSize: "inherit",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                        textAlign: "center",
+                      }}
+                    >
+                      <option value="all">Resolved?</option>
+                      <option value="unresolved">Unresolved</option>
+                      <option value="resolved">Resolved Only</option>
+                    </select>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {(items[projectId] || []).map((item) => (
+                {(items[projectId] || [])
+                  .filter((item) =>
+                    resolvedFilter === "all" ? true :
+                    resolvedFilter === "unresolved" ? !item.resolved :
+                    item.resolved
+                  )
+                  .map((item) => (
                   <tr key={item.id} style={{ borderBottom: "1px solid #ccc" }}>
                     <td style={{ padding: "8px", whiteSpace: "nowrap" }}>
                       {new Date(item.created_at).toLocaleString()}
