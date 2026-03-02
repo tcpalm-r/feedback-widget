@@ -58,7 +58,7 @@ export default function DashboardClient({ grouped, total }: Props) {
   };
 
   return (
-    <div style={{ fontFamily: "monospace", padding: "20px", maxWidth: "1200px" }}>
+    <div style={{ fontFamily: "monospace", padding: "20px", width: "1400px", minWidth: "1400px" }}>
       <h1 style={{ fontWeight: "bold" }}>User Feedback</h1>
       <p>Total: {total} entries across {projects.length} projects</p>
       <hr style={{ marginBottom: "16px" }} />
@@ -80,13 +80,13 @@ export default function DashboardClient({ grouped, total }: Props) {
           {expanded[projectId] && (
             <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
               <colgroup>
-                <col style={{ width: "14%" }} />
-                <col style={{ width: "7%" }} />
-                <col style={{ width: "6%" }} />
-                <col style={{ width: "30%" }} />
-                <col style={{ width: "8%" }} />
-                <col style={{ width: "18%" }} />
-                <col style={{ width: "12%" }} />
+                <col style={{ width: "190px" }} />
+                <col style={{ width: "90px" }} />
+                <col style={{ width: "80px" }} />
+                <col style={{ width: "420px" }} />
+                <col style={{ width: "100px" }} />
+                <col style={{ width: "250px" }} />
+                <col style={{ width: "140px" }} />
               </colgroup>
               <thead>
                 <tr style={{ textAlign: "left", borderBottom: "2px solid #333" }}>
