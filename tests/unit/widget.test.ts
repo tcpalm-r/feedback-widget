@@ -373,8 +373,12 @@ describe('Widget Render and Form Validation', () => {
       expect(feedbackTypeOptions.find((o) => o.value === 'future')).toBeDefined()
     })
 
-    it('should have exactly 3 options', () => {
-      expect(feedbackTypeOptions).toHaveLength(3)
+    it('should have Misc option', () => {
+      expect(feedbackTypeOptions.find((o) => o.value === 'misc')).toBeDefined()
+    })
+
+    it('should have exactly 4 options', () => {
+      expect(feedbackTypeOptions).toHaveLength(4)
     })
   })
 })

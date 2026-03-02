@@ -1338,7 +1338,7 @@ Error generating stack: `+a.message+`
     <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
     <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
   </svg>
-`,Vh=[{value:"bug",label:"Bug"},{value:"feature",label:"Feature"},{value:"future",label:"Future Idea (Later Version)"}];function Kh(i="bug",f="",s="idle",o="",h=!1,m=[],p=!1,b=!0,S=!1,v="",x=!1){const _=Vh.map(Y=>`<option value="${Y.value}" ${Y.value===i?"selected":""}>${Y.label}</option>`).join(""),R=s==="loading",N=R,B=s==="error"&&!S;return s==="success"?`
+`,Vh=[{value:"bug",label:"Bug"},{value:"feature",label:"Feature"},{value:"future",label:"Future Idea (Later Version)"},{value:"misc",label:"Misc."}];function Kh(i="bug",f="",s="idle",o="",h=!1,m=[],p=!1,b=!0,S=!1,v="",x=!1){const _=Vh.map(Y=>`<option value="${Y.value}" ${Y.value===i?"selected":""}>${Y.label}</option>`).join(""),R=s==="loading",N=R,B=s==="error"&&!S;return s==="success"?`
       <div class="feedback-form">
         <div class="feedback-form-header">
           <h3 class="feedback-form-title">Thank You!</h3>

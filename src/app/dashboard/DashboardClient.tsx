@@ -141,7 +141,9 @@ export default function DashboardClient({ grouped, total }: Props) {
                               ? "#ccffcc"
                               : item.type === "future"
                               ? "#cce5ff"
-                              : "#ffffcc",
+                              : item.type === "misc"
+                              ? "#ffffcc"
+                              : "#eeeeee",
                           padding: "2px 6px",
                         }}
                       >
