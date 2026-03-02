@@ -61,18 +61,16 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
   };
 
   return (
-    <div style={{ fontFamily: "monospace", padding: "20px", width: "1400px", minWidth: "1400px", fontSize: "11px" }}>
-      <h1 style={{ fontWeight: "bold" }}>User Feedback</h1>
-      <p>Total: {total} entries across {projects.length} projects</p>
+    <div style={{ fontFamily: "monospace", padding: "20px", width: "1400px", minWidth: "1400px", fontSize: "12px" }}>
+      <h1 style={{ fontWeight: "bold" }}>
+        User Feedback{singleProject && projects.length === 1 ? ` - ${projects[0]}` : ""}
+      </h1>
+      <p>Total: {total} entries{singleProject ? "" : ` across ${projects.length} projects`}</p>
       <hr style={{ marginBottom: "16px" }} />
 
       {projects.map((projectId) => (
         <div key={projectId} style={{ marginBottom: "20px" }}>
-          {singleProject ? (
-            <h2 style={{ padding: "10px 0" }}>
-              {projectId} ({(items[projectId] || []).length})
-            </h2>
-          ) : (
+          {singleProject ? null : (
             <h2
               onClick={() => toggle(projectId)}
               style={{
@@ -200,7 +198,7 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
                           cursor: toggling === item.id ? "default" : "pointer",
                           opacity: toggling === item.id ? 0.4 : 1,
                           fontFamily: "monospace",
-                          fontSize: "11px",
+                          fontSize: "12px",
                         }}
                         title={item.resolved ? "Mark as unresolved" : "Mark as resolved"}
                       >
