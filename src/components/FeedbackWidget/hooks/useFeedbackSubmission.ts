@@ -176,7 +176,7 @@ export function useFeedbackSubmission({
       }
       // Reset form fields (keep initials for next submission)
       setFeedbackMessage('');
-      setFeedbackType('general');
+      setFeedbackType('bug');
       // Release screenshot blob URLs
       capturedScreenshots.forEach(screenshot => releaseScreenshot(screenshot));
       setCapturedScreenshots([]);

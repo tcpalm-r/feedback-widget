@@ -31,7 +31,7 @@ export default function DashboardClient({ grouped, total }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [items, setItems] = useState(grouped);
   const [toggling, setToggling] = useState<string | null>(null);
-  const [resolvedFilter, setResolvedFilter] = useState<"all" | "unresolved" | "resolved">("all");
+  const [resolvedFilters, setResolvedFilters] = useState<Record<string, "all" | "unresolved" | "resolved">>({});
 
   const toggle = (projectId: string) => {
     setExpanded((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
@@ -78,7 +78,16 @@ export default function DashboardClient({ grouped, total }: Props) {
           </h2>
 
           {expanded[projectId] && (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+              <colgroup>
+                <col style={{ width: "180px" }} />
+                <col style={{ width: "80px" }} />
+                <col style={{ width: "70px" }} />
+                <col />
+                <col style={{ width: "90px" }} />
+                <col style={{ width: "180px" }} />
+                <col style={{ width: "110px" }} />
+              </colgroup>
               <thead>
                 <tr style={{ textAlign: "left", borderBottom: "2px solid #333" }}>
                   <th style={{ padding: "8px" }}>Date</th>
@@ -89,8 +98,8 @@ export default function DashboardClient({ grouped, total }: Props) {
                   <th style={{ padding: "8px" }}>Source URL</th>
                   <th style={{ padding: "8px", textAlign: "center" }}>
                     <select
-                      value={resolvedFilter}
-                      onChange={(e) => setResolvedFilter(e.target.value as "all" | "unresolved" | "resolved")}
+                      value={resolvedFilters[projectId] || "all"}
+                      onChange={(e) => setResolvedFilters((prev) => ({ ...prev, [projectId]: e.target.value as "all" | "unresolved" | "resolved" }))}
                       style={{
                         fontFamily: "monospace",
                         fontWeight: "bold",
@@ -111,11 +120,12 @@ export default function DashboardClient({ grouped, total }: Props) {
               </thead>
               <tbody>
                 {(items[projectId] || [])
-                  .filter((item) =>
-                    resolvedFilter === "all" ? true :
-                    resolvedFilter === "unresolved" ? !item.resolved :
-                    item.resolved
-                  )
+                  .filter((item) => {
+                    const filter = resolvedFilters[projectId] || "all";
+                    return filter === "all" ? true :
+                      filter === "unresolved" ? !item.resolved :
+                      item.resolved;
+                  })
                   .map((item) => (
                   <tr key={item.id} style={{ borderBottom: "1px solid #ccc" }}>
                     <td style={{ padding: "8px", whiteSpace: "nowrap" }}>
@@ -141,7 +151,7 @@ export default function DashboardClient({ grouped, total }: Props) {
                     <td style={{ padding: "8px", textTransform: "uppercase" }}>
                       {item.initials || "-"}
                     </td>
-                    <td style={{ padding: "8px", maxWidth: "400px" }}>{item.message}</td>
+                    <td style={{ padding: "8px", wordBreak: "break-word" }}>{item.message}</td>
                     <td style={{ padding: "8px" }}>
                       {item.elements && item.elements.length > 0 ? (
                         <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
@@ -169,7 +179,7 @@ export default function DashboardClient({ grouped, total }: Props) {
                         "-"
                       )}
                     </td>
-                    <td style={{ padding: "8px", fontSize: "12px" }}>
+                    <td style={{ padding: "8px", fontSize: "12px", wordBreak: "break-all" }}>
                       {item.metadata?.url || "-"}
                     </td>
                     <td style={{ padding: "8px", textAlign: "center" }}>
