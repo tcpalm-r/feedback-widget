@@ -7,6 +7,7 @@ interface FeedbackItem {
   type: string;
   message: string;
   initials: string | null;
+  resolved: boolean;
   elements: Array<{
     url: string;
     region?: { x: number; y: number; width: number; height: number };

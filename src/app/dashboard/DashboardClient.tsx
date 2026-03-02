@@ -8,6 +8,7 @@ interface FeedbackItem {
   type: string;
   message: string;
   initials: string | null;
+  resolved: boolean;
   elements: Array<{
     url: string;
     region?: { x: number; y: number; width: number; height: number };
@@ -28,9 +29,31 @@ interface Props {
 export default function DashboardClient({ grouped, total }: Props) {
   const projects = Object.keys(grouped).sort();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [items, setItems] = useState(grouped);
+  const [toggling, setToggling] = useState<string | null>(null);
 
   const toggle = (projectId: string) => {
     setExpanded((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
+  };
+
+  const toggleResolved = async (item: FeedbackItem) => {
+    setToggling(item.id);
+    const newResolved = !item.resolved;
+    const res = await fetch("/api/feedback/resolve", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.id, resolved: newResolved }),
+    });
+    if (res.ok) {
+      setItems((prev) => {
+        const next = { ...prev };
+        next[item.app_id] = next[item.app_id].map((f) =>
+          f.id === item.id ? { ...f, resolved: newResolved } : f
+        );
+        return next;
+      });
+    }
+    setToggling(null);
   };
 
   return (
@@ -50,7 +73,7 @@ export default function DashboardClient({ grouped, total }: Props) {
               userSelect: "none",
             }}
           >
-            {expanded[projectId] ? "▼" : "▶"} {projectId} ({grouped[projectId].length})
+            {expanded[projectId] ? "▼" : "▶"} {projectId} ({(items[projectId] || []).length})
           </h2>
 
           {expanded[projectId] && (
@@ -63,10 +86,11 @@ export default function DashboardClient({ grouped, total }: Props) {
                   <th style={{ padding: "8px" }}>Message</th>
                   <th style={{ padding: "8px" }}>Screenshots</th>
                   <th style={{ padding: "8px" }}>Source URL</th>
+                  <th style={{ padding: "8px" }}>Resolved</th>
                 </tr>
               </thead>
               <tbody>
-                {grouped[projectId].map((item) => (
+                {(items[projectId] || []).map((item) => (
                   <tr key={item.id} style={{ borderBottom: "1px solid #ccc" }}>
                     <td style={{ padding: "8px", whiteSpace: "nowrap" }}>
                       {new Date(item.created_at).toLocaleString()}
@@ -119,6 +143,20 @@ export default function DashboardClient({ grouped, total }: Props) {
                     </td>
                     <td style={{ padding: "8px", fontSize: "12px" }}>
                       {item.metadata?.url || "-"}
+                    </td>
+                    <td style={{ padding: "8px", textAlign: "center" }}>
+                      <span
+                        onClick={() => toggling !== item.id && toggleResolved(item)}
+                        style={{
+                          cursor: toggling === item.id ? "default" : "pointer",
+                          opacity: toggling === item.id ? 0.4 : 1,
+                          fontFamily: "monospace",
+                          fontSize: "13px",
+                        }}
+                        title={item.resolved ? "Mark as unresolved" : "Mark as resolved"}
+                      >
+                        {item.resolved ? "[x]" : "[ ]"}
+                      </span>
                     </td>
                   </tr>
                 ))}
