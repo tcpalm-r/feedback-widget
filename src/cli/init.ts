@@ -277,20 +277,50 @@ function ask(question: string, defaultValue?: string): Promise<string> {
   });
 }
 
+// --- Project registration ---
+
+async function registerProject(appId: string, apiBase: string, key: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${apiBase}/api/projects/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+      },
+      body: JSON.stringify({ app_id: appId, name: appId }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error(`  Registration failed: ${(body as { error?: string }).error || res.statusText}`);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error(`  Registration failed: ${(err as Error).message}`);
+    return false;
+  }
+}
+
 // --- CLI arg parsing ---
 
-function parseArgs(argv: string[]): { command: string; appId?: string } {
+function parseArgs(argv: string[]): { command: string; appId?: string; key?: string } {
   const args = argv.slice(2);
   const command = args[0] ?? 'init';
   let appId: string | undefined;
+  let key: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--appId' && args[i + 1]) {
       appId = args[i + 1];
     }
+    if (args[i] === '--key' && args[i + 1]) {
+      key = args[i + 1];
+    }
   }
 
-  return { command, appId };
+  return { command, appId, key };
 }
 
 // --- Manual instructions fallback ---
@@ -337,7 +367,7 @@ function getVersion(): string {
 
 // --- Main ---
 
-async function runInit(cliAppId?: string): Promise<void> {
+async function runInit(cliAppId?: string, cliKey?: string): Promise<void> {
   const cwd = process.cwd();
   const version = getVersion();
 
@@ -365,6 +395,22 @@ async function runInit(cliAppId?: string): Promise<void> {
   console.log(`  Found: ${frameworkNames[detection.framework]}`);
   console.log(`  Target: ${detection.targetFile}\n`);
 
+  // Register project with the feedback API
+  const registrationKey = cliKey || process.env.FEEDBACK_WIDGET_KEY;
+  if (registrationKey) {
+    console.log(`  Registering project "${appId}"...`);
+    const registered = await registerProject(appId, DEFAULT_API_BASE, registrationKey);
+    if (registered) {
+      console.log(`  Project "${appId}" registered successfully.\n`);
+    } else {
+      console.log('  Warning: Registration failed. The widget will be installed but feedback');
+      console.log('  submissions may be rejected until the project is registered.\n');
+    }
+  } else {
+    console.log('  Tip: Pass --key <REGISTRATION_KEY> or set FEEDBACK_WIDGET_KEY env var');
+    console.log('  to auto-register this project with the feedback API.\n');
+  }
+
   const absTarget = path.join(cwd, detection.targetFile);
   let content = fs.readFileSync(absTarget, 'utf-8');
 
@@ -373,8 +419,6 @@ async function runInit(cliAppId?: string): Promise<void> {
     console.log(`  ${COMPONENT_NAME} is already installed in ${detection.targetFile}. Skipping.\n`);
     return;
   }
-
-  // appId resolved above from --appId flag or directory name
 
   // Inject import
   content = injectImport(content);
@@ -398,22 +442,23 @@ async function runInit(cliAppId?: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const { command, appId } = parseArgs(process.argv);
+  const { command, appId, key } = parseArgs(process.argv);
 
   switch (command) {
     case 'init':
-      await runInit(appId);
+      await runInit(appId, key);
       break;
     case '--help':
     case '-h':
       console.log(`
-  Usage: npx ${PACKAGE_NAME} init [--appId <name>]
+  Usage: npx ${PACKAGE_NAME} init [--appId <name>] [--key <key>]
 
   Commands:
     init          Add FeedbackWidget to your project
 
   Options:
     --appId       Project identifier (defaults to directory name)
+    --key         Registration API key (or set FEEDBACK_WIDGET_KEY env var)
     --help, -h    Show this help message
     --version, -v Show version
 `);
