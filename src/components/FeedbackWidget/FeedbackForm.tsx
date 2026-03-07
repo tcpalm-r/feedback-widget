@@ -5,6 +5,10 @@ import { getSelectOnScreenButtonHTML } from './SelectionMode';
 import { getScreenshotListBadgeHTML } from './ScreenshotList';
 import { CapturedScreenshot } from './utils/screenshot';
 
+function escapeHtml(str: string): string {
+  return str.replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
 // X icon SVG for close button (from Lucide)
 const XIcon = `
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -123,7 +127,7 @@ export function getFeedbackFormHTML(
         ${showBanner ? `
           <div class="feedback-error-banner">
             <span class="feedback-error-icon">${AlertCircleIcon}</span>
-            <span class="feedback-error-text">${errorMessage || 'Something went wrong. Please try again.'}</span>
+            <span class="feedback-error-text">${escapeHtml(errorMessage) || 'Something went wrong. Please try again.'}</span>
             ${showRetryButton ? `<button type="button" class="feedback-retry-button">${isNetworkError ? 'Retry' : 'Try Again'}</button>` : ''}
           </div>
         ` : ''}
@@ -139,7 +143,7 @@ export function getFeedbackFormHTML(
             class="feedback-initials ${isInitialsValidationError ? 'error' : ''}"
             placeholder="Initials"
             maxlength="4"
-            value="${initials}"
+            value="${escapeHtml(initials)}"
             ${isDisabled ? 'disabled' : ''}
           />
         </div>
@@ -152,7 +156,7 @@ export function getFeedbackFormHTML(
             placeholder="Tell us what's on your mind..."
             rows="1"
             ${isDisabled ? 'disabled' : ''}
-          >${message}</textarea>
+          >${escapeHtml(message)}</textarea>
         </div>
 
         ${getSelectOnScreenButtonHTML(isDisabled)}
