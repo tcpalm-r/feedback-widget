@@ -31,7 +31,7 @@ npm run build:widget
 Deploy the app to Vercel. It will serve `public/widget.js` at:
 
 ```
-https://feedback-widget-alpha-ten.vercel.app/widget.js
+https://sonance-user-feedback.vercel.app/widget.js
 ```
 
 The widget posts to `/api/feedback` and `/api/screenshot` on the same domain.
@@ -39,14 +39,14 @@ The widget posts to `/api/feedback` and `/api/screenshot` on the same domain.
 Remote config endpoint (optional):
 
 ```
-https://feedback-widget-alpha-ten.vercel.app/api/config?env=alpha&app=my-app
+https://sonance-user-feedback.vercel.app/api/config?env=alpha&app=my-app
 ```
 
 Config env vars (optional):
 
 ```
 WIDGET_KILL_SWITCH=true
-WIDGET_API_BASE_URL=https://feedback-widget-alpha-ten.vercel.app
+WIDGET_API_BASE_URL=https://sonance-user-feedback.vercel.app
 WIDGET_VERSION=0.1.0
 WIDGET_FLAGS={"screenshots":true}
 ```
@@ -64,7 +64,7 @@ export default function RootLayout({ children }) {
       <body>
         {children}
         <Script
-          src="https://feedback-widget-alpha-ten.vercel.app/widget.js"
+          src="https://sonance-user-feedback.vercel.app/widget.js"
           strategy="afterInteractive"
           data-app-id="my-app"
           data-position="bottom-left"
@@ -79,7 +79,7 @@ Plain HTML (any app):
 
 ```html
 <script
-  src="https://feedback-widget-alpha-ten.vercel.app/widget.js"
+  src="https://sonance-user-feedback.vercel.app/widget.js"
   data-app-id="my-app"
   data-position="bottom-left"
 ></script>
@@ -102,7 +102,7 @@ window.FeedbackWidget?.mount();
 ```
 
 CSP note (only if strict):
-- Allow `script-src` and `connect-src` to `https://feedback-widget-alpha-ten.vercel.app`
+- Allow `script-src` and `connect-src` to `https://sonance-user-feedback.vercel.app`
 - Allow `img-src` `blob:` (screenshot previews)
 - Allow `style-src 'unsafe-inline'` (Shadow DOM styles are injected)
 

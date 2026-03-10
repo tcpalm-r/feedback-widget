@@ -4,7 +4,7 @@ import * as readline from 'node:readline';
 
 const PACKAGE_NAME = '@danainnovations/feedback-widget';
 const COMPONENT_NAME = 'FeedbackWidget';
-const DEFAULT_API_BASE = 'https://feedback-widget-alpha-ten.vercel.app';
+const DEFAULT_API_BASE = 'https://sonance-user-feedback.vercel.app';
 
 type Framework = 'nextjs-app' | 'nextjs-pages' | 'vite-cra' | 'unknown';
 

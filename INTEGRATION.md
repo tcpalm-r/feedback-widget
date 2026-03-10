@@ -11,7 +11,7 @@ export default function RootLayout({ children }) {
       <body>
         {children}
         <Script
-          src="https://feedback-widget-alpha-ten.vercel.app/widget.js"
+          src="https://sonance-user-feedback.vercel.app/widget.js"
           strategy="afterInteractive"
           data-app-id="my-app"
           data-position="bottom-left"
@@ -26,7 +26,7 @@ export default function RootLayout({ children }) {
 
 ```html
 <script
-  src="https://feedback-widget-alpha-ten.vercel.app/widget.js"
+  src="https://sonance-user-feedback.vercel.app/widget.js"
   data-app-id="my-app"
   data-position="bottom-left"
 ></script>
@@ -44,6 +44,6 @@ export default function RootLayout({ children }) {
 
 ## CSP (only if strict)
 
-- `script-src` and `connect-src` → `https://feedback-widget-alpha-ten.vercel.app`
+- `script-src` and `connect-src` → `https://sonance-user-feedback.vercel.app`
 - `img-src` → `blob:`
 - `style-src 'unsafe-inline'`
