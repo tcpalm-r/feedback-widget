@@ -1,7 +1,7 @@
 # Feedback Widget → Cortex Integration Architecture
 
 **Date**: 2026-03-10 (updated 2026-03-19)
-**Status**: Phase 2 in progress — auto-triage working locally, Cortex PRs pending merge
+**Status**: Cortex forwarding implemented — `/api/feedback` forwards to Cortex for auto-triage, falls back to direct Supabase insert. Pending production deploy.
 
 ---
 
@@ -43,7 +43,7 @@ As Dana scales AI-assisted development to non-technical employees, every new app
 
 ### Known blockers
 
-1. **Path mismatch**: Widget hardcodes `{apiBaseUrl}/api/feedback`. Cortex serves at `/api/v1/feedback`. No `apiBaseUrl` value satisfies both.
+1. ~~**Path mismatch**~~: Resolved — this app's `/api/feedback` route now forwards to Cortex's `/api/v1/feedback` server-side. No widget changes needed.
 2. **Screenshot upload**: Widget uploads to `{apiBaseUrl}/api/screenshot`. Cortex has no screenshot endpoint.
 
 ---
@@ -102,13 +102,15 @@ The original architecture proposed batch triage every 5 minutes. PR #172 changes
 - Widget UI (floating button, form, screenshot capture) — working
 - CLI init (`npx @danainnovations/feedback-widget init`) — working
 - `init.ts` locally updated to point at Cortex + use new registration endpoint (uncommitted)
+- `/api/feedback` route forwards to Cortex (`POST /api/v1/feedback`) with 5s timeout, falls back to direct Supabase insert if Cortex is unavailable
+- `CORTEX_API_URL` env var set on Vercel production (`https://cortex-bice.vercel.app`)
 
 **Verified locally (2026-03-19):**
 - `curl POST localhost:8000/api/v1/feedback` → triaged + Asana task created within 5s
 
 ## Action items
 
-1. **Add `/api/feedback` compat route in Cortex** — widget hardcodes `/api/feedback`, Cortex serves `/api/v1/feedback`. One alias route unblocks everything without an npm publish.
+1. ~~**Add `/api/feedback` compat route in Cortex**~~ — No longer needed. This app's `/api/feedback` route forwards to Cortex's `/api/v1/feedback` server-side. `CORTEX_API_URL` env var set on Vercel production (`https://cortex-bice.vercel.app`).
 2. **Add `/api/screenshot` endpoint to Cortex** — widget uploads to `{apiBaseUrl}/api/screenshot`. Cortex has no screenshot endpoint. Should write to the same Supabase storage bucket (`feedback-screenshots`).
 3. **Update widget default API base + publish** — commit the `init.ts` change (`DEFAULT_API_BASE` → `cortex-bice.vercel.app`), publish v0.3.0. Consumer apps pick up the new default on `npm update`.
 
