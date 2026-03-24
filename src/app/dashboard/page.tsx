@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import DashboardClient from "./DashboardClient";
+import DashboardError from "./DashboardError";
 
 interface FeedbackItem {
   id: string;
@@ -30,7 +31,7 @@ export default async function DashboardPage() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return <div>Error loading feedback: {error.message}</div>;
+    return <DashboardError message={error.message} />;
   }
 
   // Group by app_id

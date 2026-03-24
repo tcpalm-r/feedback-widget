@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDarkMode, darkModeColors } from "./useDarkMode";
 
 interface FeedbackItem {
   id: string;
@@ -35,9 +36,39 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
   const [items, setItems] = useState(grouped);
   const [toggling, setToggling] = useState<string | null>(null);
   const [resolvedFilters, setResolvedFilters] = useState<Record<string, "all" | "unresolved" | "resolved">>({});
+  const [editingType, setEditingType] = useState<string | null>(null);
+  const [updatingType, setUpdatingType] = useState<string | null>(null);
+  const { dark, toggleDark } = useDarkMode();
+  const c = darkModeColors(dark);
 
   const toggle = (projectId: string) => {
     setExpanded((prev) => ({ ...prev, [projectId]: !prev[projectId] }));
+  };
+
+  const typeOptions = ["bug", "feature", "future", "misc"];
+
+  const updateType = async (item: FeedbackItem, newType: string) => {
+    if (newType === item.type) {
+      setEditingType(null);
+      return;
+    }
+    setUpdatingType(item.id);
+    const res = await fetch("/api/feedback/type", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.id, type: newType }),
+    });
+    if (res.ok) {
+      setItems((prev) => {
+        const next = { ...prev };
+        next[item.app_id] = next[item.app_id].map((f) =>
+          f.id === item.id ? { ...f, type: newType } : f
+        );
+        return next;
+      });
+    }
+    setUpdatingType(null);
+    setEditingType(null);
   };
 
   const toggleResolved = async (item: FeedbackItem) => {
@@ -60,13 +91,38 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
     setToggling(null);
   };
 
+  const typeColor = (type: string) =>
+    type === "bug" ? c.typeBug
+    : type === "feature" ? c.typeFeature
+    : type === "future" ? c.typeFuture
+    : type === "misc" ? c.typeMisc
+    : c.typeDefault;
+
   return (
+    <div style={{ backgroundColor: c.bg, color: c.text, minHeight: "100vh" }}>
     <div style={{ fontFamily: "monospace", padding: "20px", width: "1400px", minWidth: "1400px", fontSize: "12px" }}>
-      <h1 style={{ fontWeight: "bold" }}>
-        User Feedback{singleProject && projects.length === 1 ? ` - ${projects[0]}` : ""}
-      </h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ fontWeight: "bold" }}>
+          User Feedback{singleProject && projects.length === 1 ? ` - ${projects[0]}` : ""}
+        </h1>
+        <button
+          onClick={toggleDark}
+          title={dark ? "Switch to light mode" : "Switch to dark mode"}
+          style={{
+            fontFamily: "monospace",
+            fontSize: "12px",
+            padding: "4px 10px",
+            cursor: "pointer",
+            backgroundColor: c.surface,
+            color: c.text,
+            border: `1px solid ${c.border}`,
+          }}
+        >
+          {dark ? "light" : "dark"}
+        </button>
+      </div>
       <p>Total: {total} entries{singleProject ? "" : ` across ${projects.length} projects`}</p>
-      <hr style={{ marginBottom: "16px" }} />
+      <hr style={{ marginBottom: "16px", borderColor: c.hr }} />
 
       {projects.map((projectId) => (
         <div key={projectId} style={{ marginBottom: "20px" }}>
@@ -74,7 +130,8 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
             <h2
               onClick={() => toggle(projectId)}
               style={{
-                backgroundColor: "#eee",
+                backgroundColor: c.surface,
+                color: c.text,
                 padding: "10px",
                 cursor: "pointer",
                 userSelect: "none",
@@ -96,7 +153,7 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
                 <col style={{ width: "140px" }} />
               </colgroup>
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "2px solid #333" }}>
+                <tr style={{ textAlign: "left", borderBottom: `2px solid ${c.borderStrong}` }}>
                   <th style={{ padding: "8px" }}>Date</th>
                   <th style={{ padding: "8px" }}>Type</th>
                   <th style={{ padding: "8px" }}>Initials</th>
@@ -112,6 +169,7 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
                         fontWeight: "bold",
                         fontSize: "inherit",
                         background: "none",
+                        color: c.text,
                         border: "none",
                         cursor: "pointer",
                         padding: 0,
@@ -134,28 +192,47 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
                       item.resolved;
                   })
                   .map((item) => (
-                  <tr key={item.id} style={{ borderBottom: "1px solid #ccc" }}>
+                  <tr key={item.id} style={{ borderBottom: `1px solid ${c.border}` }}>
                     <td style={{ padding: "8px", whiteSpace: "nowrap" }}>
                       {new Date(item.created_at).toLocaleString()}
                     </td>
                     <td style={{ padding: "8px" }}>
-                      <span
-                        style={{
-                          backgroundColor:
-                            item.type === "bug"
-                              ? "#ffcccc"
-                              : item.type === "feature"
-                              ? "#ccffcc"
-                              : item.type === "future"
-                              ? "#cce5ff"
-                              : item.type === "misc"
-                              ? "#ffffcc"
-                              : "#eeeeee",
-                          padding: "2px 6px",
-                        }}
-                      >
-                        {item.type}
-                      </span>
+                      {editingType === item.id ? (
+                        <select
+                          autoFocus
+                          value={item.type}
+                          onChange={(e) => updateType(item, e.target.value)}
+                          onBlur={() => setEditingType(null)}
+                          disabled={updatingType === item.id}
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: "12px",
+                            padding: "2px 4px",
+                            cursor: "pointer",
+                            backgroundColor: c.inputBg,
+                            color: c.text,
+                            border: `1px solid ${c.inputBorder}`,
+                          }}
+                        >
+                          {typeOptions.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span
+                          onClick={() => setEditingType(item.id)}
+                          title="Click to change type"
+                          style={{
+                            backgroundColor: typeColor(item.type),
+                            color: c.typeText,
+                            padding: "2px 6px",
+                            cursor: "pointer",
+                            opacity: updatingType === item.id ? 0.4 : 1,
+                          }}
+                        >
+                          {item.type}
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: "8px", textTransform: "uppercase" }}>
                       {item.initials || "-"}
@@ -178,7 +255,7 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
                                   width: "60px",
                                   height: "60px",
                                   objectFit: "cover",
-                                  border: "1px solid #ccc",
+                                  border: `1px solid ${c.imgBorder}`,
                                 }}
                               />
                             </a>
@@ -212,6 +289,7 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
           )}
         </div>
       ))}
+    </div>
     </div>
   );
 }

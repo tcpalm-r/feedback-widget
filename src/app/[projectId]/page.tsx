@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import DashboardClient from "../dashboard/DashboardClient";
+import ProjectEmpty from "./ProjectEmpty";
 
 interface FeedbackItem {
   id: string;
@@ -36,16 +37,11 @@ export default async function ProjectPage({
     .order("created_at", { ascending: false });
 
   if (error) {
-    return <div>Error loading feedback: {error.message}</div>;
+    return <ProjectEmpty message={`Error loading feedback: ${error.message}`} />;
   }
 
   if (!feedback || feedback.length === 0) {
-    return (
-      <div style={{ fontFamily: "monospace", padding: "20px" }}>
-        <p>No feedback found for project <strong>{projectId}</strong></p>
-        <a href="/dashboard" style={{ color: "#0070f3" }}>← All projects</a>
-      </div>
-    );
+    return <ProjectEmpty projectId={projectId} />;
   }
 
   const grouped: Record<string, FeedbackItem[]> = {
