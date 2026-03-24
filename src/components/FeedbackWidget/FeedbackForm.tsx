@@ -58,7 +58,7 @@ export interface FeedbackFormData {
 
 export const feedbackTypeOptions: { value: FeedbackType; label: string }[] = [
   { value: 'bug', label: 'Bug' },
-  { value: 'feature', label: 'Feature' },
+  { value: 'feature', label: 'Feature (This Version)' },
   { value: 'future', label: 'Future Idea (Later Version)' },
   { value: 'misc', label: 'Misc.' },
 ];
