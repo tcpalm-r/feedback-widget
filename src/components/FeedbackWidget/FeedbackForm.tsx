@@ -155,7 +155,7 @@ export function getFeedbackFormHTML(
             id="feedback-message"
             name="message"
             class="feedback-textarea ${isValidationError ? 'error' : ''}"
-            placeholder="Tell us what's on your mind..."
+            placeholder="Description..."
             rows="1"
             ${isDisabled ? 'disabled' : ''}
           >${escapeHtml(message)}</textarea>
