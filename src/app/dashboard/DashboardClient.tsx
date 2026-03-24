@@ -91,6 +91,30 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
     setToggling(null);
   };
 
+  const downloadCSV = () => {
+    const allItems = Object.values(items).flat();
+    const headers = ["Date", "Project", "Type", "Initials", "Message", "Source URL", "Resolved", "Screenshot URLs"];
+    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const rows = allItems.map((item) => [
+      new Date(item.created_at).toLocaleString(),
+      item.app_id,
+      item.type,
+      item.initials || "",
+      item.message,
+      item.metadata?.url || "",
+      item.resolved ? "Yes" : "No",
+      (item.elements || []).map((el) => el.url).join(" | "),
+    ].map(escape).join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `feedback-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const typeColor = (type: string) =>
     type === "bug" ? c.typeBug
     : type === "feature" ? c.typeFeature
@@ -105,21 +129,38 @@ export default function DashboardClient({ grouped, total, singleProject }: Props
         <h1 style={{ fontWeight: "bold" }}>
           User Feedback{singleProject && projects.length === 1 ? ` - ${projects[0]}` : ""}
         </h1>
-        <button
-          onClick={toggleDark}
-          title={dark ? "Switch to light mode" : "Switch to dark mode"}
-          style={{
-            fontFamily: "monospace",
-            fontSize: "12px",
-            padding: "4px 10px",
-            cursor: "pointer",
-            backgroundColor: c.surface,
-            color: c.text,
-            border: `1px solid ${c.border}`,
-          }}
-        >
-          {dark ? "light" : "dark"}
-        </button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            onClick={downloadCSV}
+            title="Download all feedback as CSV"
+            style={{
+              fontFamily: "monospace",
+              fontSize: "12px",
+              padding: "4px 10px",
+              cursor: "pointer",
+              backgroundColor: c.surface,
+              color: c.text,
+              border: `1px solid ${c.border}`,
+            }}
+          >
+            export csv
+          </button>
+          <button
+            onClick={toggleDark}
+            title={dark ? "Switch to light mode" : "Switch to dark mode"}
+            style={{
+              fontFamily: "monospace",
+              fontSize: "12px",
+              padding: "4px 10px",
+              cursor: "pointer",
+              backgroundColor: c.surface,
+              color: c.text,
+              border: `1px solid ${c.border}`,
+            }}
+          >
+            {dark ? "light" : "dark"}
+          </button>
+        </div>
       </div>
       <p>Total: {total} entries{singleProject ? "" : ` across ${projects.length} projects`}</p>
       <hr style={{ marginBottom: "16px", borderColor: c.hr }} />
