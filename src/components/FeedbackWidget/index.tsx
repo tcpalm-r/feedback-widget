@@ -78,6 +78,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     feedbackType, setFeedbackType, feedbackMessage, setFeedbackMessage,
     feedbackInitials, setFeedbackInitials,
     submissionState, errorMessage, isNetworkError, isValidationError, isInitialsValidationError,
+    isTypeValidationError,
     handleClose, handleSubmit, handleRetry,
   } = useFeedbackSubmission({
     effectiveAppId, effectiveApiBaseUrl, effectiveJwtConfig, capturedScreenshots, setCapturedScreenshots,
@@ -123,7 +124,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     }
     const hasRectanglesToDisplay = drawnRectangles.length > 0;
     const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : (hasRectanglesToDisplay ? getDisplayCanvasHTML() : '');
-    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError && !isInitialsValidationError, isValidationError, feedbackInitials, isInitialsValidationError);
+    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError && !isInitialsValidationError && !isTypeValidationError, isValidationError, feedbackInitials, isInitialsValidationError, isTypeValidationError);
 
     let morphContainer = morphContainerRef.current;
     if (morphContainer && shadowRoot.contains(morphContainer)) {

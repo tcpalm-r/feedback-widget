@@ -42,6 +42,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# widget build output (rebuilt by Vite on each deploy)
+/public/widget.js
+/public/widget.js.map
+
 # ralph
 .last-branch
 /archive/

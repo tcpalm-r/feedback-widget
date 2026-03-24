@@ -17,7 +17,7 @@ export default defineConfig({
     },
     outDir: 'public',
     emptyOutDir: false,
-    sourcemap: true,
+    sourcemap: false,
     target: 'es2017',
   },
   publicDir: false,

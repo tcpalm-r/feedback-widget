@@ -27,7 +27,7 @@ export function useFeedbackSubmission({
 }: UseFeedbackSubmissionProps) {
   const INITIALS_STORAGE_KEY = 'feedback-widget-initials';
 
-  const [feedbackType, setFeedbackType] = useState<FeedbackType>('bug');
+  const [feedbackType, setFeedbackTypeRaw] = useState<FeedbackType>('');
   const [feedbackMessage, setFeedbackMessageRaw] = useState('');
   const [feedbackInitials, setFeedbackInitialsRaw] = useState('');
   const [submissionState, setSubmissionState] = useState<SubmissionState>('idle');
@@ -35,6 +35,7 @@ export function useFeedbackSubmission({
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [isValidationError, setIsValidationError] = useState(false);
   const [isInitialsValidationError, setIsInitialsValidationError] = useState(false);
+  const [isTypeValidationError, setIsTypeValidationError] = useState(false);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load cached initials on mount
@@ -48,6 +49,16 @@ export function useFeedbackSubmission({
       // localStorage not available
     }
   }, []);
+
+  // Wrapper that clears type validation error when user selects
+  const setFeedbackType = useCallback((type: FeedbackType) => {
+    setFeedbackTypeRaw(type);
+    if (isTypeValidationError) {
+      setIsTypeValidationError(false);
+      setSubmissionState('idle');
+      setErrorMessage('');
+    }
+  }, [isTypeValidationError]);
 
   // Wrapper that clears validation error when user types
   const setFeedbackMessage = useCallback((msg: string) => {
@@ -97,11 +108,13 @@ export function useFeedbackSubmission({
       e.preventDefault();
     }
 
-    // Validate both fields - just show red on empty fields
+    // Validate all required fields - just show red on empty fields
+    const typeEmpty = feedbackType === '';
     const initialsEmpty = !feedbackInitials.trim();
     const messageEmpty = !feedbackMessage.trim();
 
-    if (initialsEmpty || messageEmpty) {
+    if (typeEmpty || initialsEmpty || messageEmpty) {
+      setIsTypeValidationError(typeEmpty);
       setIsInitialsValidationError(initialsEmpty);
       setIsValidationError(messageEmpty);
       setSubmissionState('idle');
@@ -114,6 +127,7 @@ export function useFeedbackSubmission({
     setIsNetworkError(false);
     setIsValidationError(false);
     setIsInitialsValidationError(false);
+    setIsTypeValidationError(false);
 
     const metadata = collectMetadata();
 
@@ -176,7 +190,7 @@ export function useFeedbackSubmission({
       }
       // Reset form fields (keep initials for next submission)
       setFeedbackMessage('');
-      setFeedbackType('bug');
+      setFeedbackType('');
       // Release screenshot blob URLs
       capturedScreenshots.forEach(screenshot => releaseScreenshot(screenshot));
       setCapturedScreenshots([]);
@@ -212,6 +226,7 @@ export function useFeedbackSubmission({
     isNetworkError,
     isValidationError,
     isInitialsValidationError,
+    isTypeValidationError,
     autoCloseTimerRef,
     handleClose,
     handleSubmit,

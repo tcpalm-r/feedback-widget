@@ -47,7 +47,7 @@ const LoaderIcon = `
   </svg>
 `;
 
-export type FeedbackType = 'bug' | 'feature' | 'future' | 'misc';
+export type FeedbackType = '' | 'bug' | 'feature' | 'future' | 'misc';
 
 export type SubmissionState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -64,7 +64,7 @@ export const feedbackTypeOptions: { value: FeedbackType; label: string }[] = [
 ];
 
 export function getFeedbackFormHTML(
-  selectedType: FeedbackType = 'bug',
+  selectedType: FeedbackType = '',
   message: string = '',
   submissionState: SubmissionState = 'idle',
   errorMessage: string = '',
@@ -74,14 +74,16 @@ export function getFeedbackFormHTML(
   showRetryButton: boolean = true,
   isValidationError: boolean = false,
   initials: string = '',
-  isInitialsValidationError: boolean = false
+  isInitialsValidationError: boolean = false,
+  isTypeValidationError: boolean = false
 ): string {
-  const typeOptions = feedbackTypeOptions
-    .map(
-      (opt) =>
-        `<option value="${opt.value}" ${opt.value === selectedType ? 'selected' : ''}>${opt.label}</option>`
-    )
-    .join('');
+  const typeOptions = `<option value="" disabled ${selectedType === '' ? 'selected' : ''}>Select type...</option>` +
+    feedbackTypeOptions
+      .map(
+        (opt) =>
+          `<option value="${opt.value}" ${opt.value === selectedType ? 'selected' : ''}>${opt.label}</option>`
+      )
+      .join('');
 
   const isLoading = submissionState === 'loading';
   const isDisabled = isLoading;
@@ -133,7 +135,7 @@ export function getFeedbackFormHTML(
         ` : ''}
 
         <div class="feedback-form-field feedback-form-row">
-          <select id="feedback-type" name="type" class="feedback-select" ${isDisabled ? 'disabled' : ''}>
+          <select id="feedback-type" name="type" class="feedback-select ${isTypeValidationError ? 'error' : ''}" ${isDisabled ? 'disabled' : ''}>
             ${typeOptions}
           </select>
           <input

@@ -370,6 +370,16 @@ export const getWidgetStyles = (): string => `
     box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.15);
   }
 
+  .feedback-select.error {
+    border-color: #dc2626;
+    background-color: #fef2f2;
+  }
+
+  .feedback-select.error:focus {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  }
+
   .feedback-textarea {
     width: 100%;
     padding: 10px 12px;
