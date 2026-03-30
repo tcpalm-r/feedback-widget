@@ -5,7 +5,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const asanaPat = process.env.ASANA_PAT!;
 
-const RESOLVED_SECTION_KEYS = ["completed", "on_hold"];
+const RESOLVED_SECTION_KEYS = ["completed"];
 
 interface ScreenshotElement {
   url: string;
