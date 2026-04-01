@@ -1,7 +1,7 @@
 # Feedback Widget → Cortex Integration Architecture
 
-**Date**: 2026-03-10 (updated 2026-03-19)
-**Status**: Cortex forwarding implemented — `/api/feedback` forwards to Cortex for auto-triage, falls back to direct Supabase insert. Pending production deploy.
+**Date**: 2026-03-10 (updated 2026-03-20)
+**Status**: End-to-end pipeline working in production. Widget → feedback-widget app → Cortex → triage → Asana task. Cortex PR #179 pending merge adds custom fields + new sections.
 
 ---
 
@@ -21,16 +21,16 @@ As Dana scales AI-assisted development to non-technical employees, every new app
 
 ---
 
-## Current State (2026-03-19)
+## Current State (2026-03-20)
 
 ### What's deployed and working
 
 | Component | URL / Location | Status |
 |-----------|---------------|--------|
 | Cortex API (prod) | `https://cortex-bice.vercel.app` | UP — `POST /api/v1/feedback` live with auto-triage |
-| Feedback widget app | `https://sonance-user-feedback.vercel.app` | UP — still serving, consumer apps point here |
+| Feedback widget app | `https://sonance-user-feedback.vercel.app` | UP — forwards to Cortex, falls back to direct Supabase insert |
 | Widget npm package | `@danainnovations/feedback-widget` v0.2.7 | Published — widget posts to `{apiBaseUrl}/api/feedback` |
-| Feedback DB | Supabase `kmlsiaasvgiwtxqxqkbb` | 98 items (20 pending, 22 triaged, 56 resolved), 19 with Asana tasks |
+| Feedback DB | Supabase `kmlsiaasvgiwtxqxqkbb` | `asana_custom_fields` column added to projects table |
 
 ### Registered projects
 
@@ -92,11 +92,12 @@ The original architecture proposed batch triage every 5 minutes. PR #172 changes
 - Feedback MCP with 11 tools covering the full lifecycle (list, triage, Asana routing, task management, PR summaries, preview URLs)
 - `POST /api/v1/feedback` — public REST endpoint, auto-triages via Haiku BackgroundTask, creates Asana task (~5s)
 - `POST /api/v1/feedback/register` — registers new app, creates Asana project + sections, idempotent
-- TriageEngine (Haiku via Apollo), smart Asana routing (auto-fixable high-confidence → Up Next, else → Backlog)
+- TriageEngine (Haiku via Apollo), all new feedback routes to "New" section (legacy fallback to "Backlog")
 - `elements` field accepts `list | dict | None` for screenshot attachments
 - DB schema: `feedback` table has `status`, `triage`, `asana_task_gid`, `preview_deploy_url` columns
 - 4 registered projects, 2 with Asana configured (speaker-placement-calc, demo-app)
 - PRs #166, #171, #172 code pushed to main (PRs can be closed)
+- PR #179 (pending): Asana custom fields (Type, Severity, Effort, Submitted by, Submitted date), registration endpoint, sections updated to New → Deferred → In Progress → Completed
 
 **Feedback widget (`@danainnovations/feedback-widget` v0.2.7 on npm):**
 - Widget UI (floating button, form, screenshot capture) — working
@@ -105,14 +106,25 @@ The original architecture proposed batch triage every 5 minutes. PR #172 changes
 - `/api/feedback` route forwards to Cortex (`POST /api/v1/feedback`) with 5s timeout, falls back to direct Supabase insert if Cortex is unavailable
 - `CORTEX_API_URL` env var set on Vercel production (`https://cortex-bice.vercel.app`)
 
-**Verified locally (2026-03-19):**
-- `curl POST localhost:8000/api/v1/feedback` → triaged + Asana task created within 5s
+**Verified (2026-03-20):**
+- Cortex forwarding: widget → production feedback-widget app → production Cortex → triage + Asana task (~5s)
+- Fallback: Cortex down → direct Supabase insert (no triage, feedback saved)
+- Test junk cleaned from Supabase and Asana board
 
 ## Action items
 
-1. ~~**Add `/api/feedback` compat route in Cortex**~~ — No longer needed. This app's `/api/feedback` route forwards to Cortex's `/api/v1/feedback` server-side. `CORTEX_API_URL` env var set on Vercel production (`https://cortex-bice.vercel.app`).
-2. **Add `/api/screenshot` endpoint to Cortex** — widget uploads to `{apiBaseUrl}/api/screenshot`. Cortex has no screenshot endpoint. Should write to the same Supabase storage bucket (`feedback-screenshots`).
-3. **Update widget default API base + publish** — commit the `init.ts` change (`DEFAULT_API_BASE` → `cortex-bice.vercel.app`), publish v0.3.0. Consumer apps pick up the new default on `npm update`.
+### Done
+1. ~~**Add `/api/feedback` compat route in Cortex**~~ — Resolved. Feedback-widget app forwards server-side.
+2. ~~**Asana custom fields + new sections**~~ — Cortex PR #179 merged. Custom fields created manually in Asana (PAT lacks permission to create via API). GIDs stored in DB.
+3. ~~**Re-register speaker-placement-calc + demo-app**~~ — Custom fields backfilled manually. Sections renamed in Asana (Backlog → New, Up Next removed).
+
+### Immediate — required for demo
+4. **Attach screenshots to Asana tasks** — Screenshots are captured by the widget and saved to Supabase storage (`feedback-screenshots` bucket), but they are not attached to Asana tasks. The triage data and task description have no link to the image. Need to either: (a) add screenshot URL to the Asana task description, or (b) use Asana's attachment API to upload the image to the task. Screenshots are critical for the demo — feedback without the screenshot loses context.
+5. **Add `/api/screenshot` endpoint to Cortex** — widget uploads to `{apiBaseUrl}/api/screenshot`. Cortex has no screenshot endpoint. Should write to the same Supabase storage bucket (`feedback-screenshots`). Required for screenshots to work when widget points directly at Cortex.
+
+### Future
+6. **Bidirectional Asana sync** — Currently one-way (DB → Asana on creation). Need: (a) DB → Asana updates when MCP tools change status/resolve, (b) Asana → DB via webhooks when tasks are moved between sections, fields edited, or marked complete. Both directions matter equally — the DB and Asana board must stay in sync.
+7. **Update widget default API base + publish** — commit the `init.ts` change (`DEFAULT_API_BASE` → `cortex-bice.vercel.app`), publish v0.3.0. Consumer apps pick up the new default on `npm update`.
 
 ---
 
@@ -127,7 +139,7 @@ Two servers:
 
 Widget `apiBaseUrl` in local dev: `http://localhost:8000`
 
-Cortex must be on a branch with auto-triage code (currently `feature/auto-triage`, will be `main` after merge).
+Auto-triage is on Cortex `main`. Custom fields + new sections on `feature/asana-custom-fields` (PR #179).
 
 ---
 
@@ -193,28 +205,39 @@ feedback/
 | Endpoint | Purpose |
 |----------|---------|
 | `POST /api/v1/feedback` | Accept widget submissions. Insert + auto-triage in background. |
-| `POST /api/v1/feedback/register` | Register new app. Creates Asana project + sections + DB row. Idempotent. |
+| `POST /api/v1/feedback/register` | Register new app. Creates Asana project + sections + custom fields + DB row. Idempotent. Backfills custom fields on re-registration. |
 | `OPTIONS /api/v1/feedback` | CORS preflight |
 | **TODO**: `POST /api/v1/feedback/screenshot` | Screenshot upload (currently only on feedback-widget app) |
-| **TODO**: `POST /api/feedback` | Alias for `/api/v1/feedback` (path compat for widget) |
+| ~~**TODO**: `POST /api/feedback`~~ | No longer needed — feedback-widget app forwards server-side |
 
 ---
 
 ## Asana Project Structure
 
-Each registered app gets an Asana project. Current section mapping:
+Each registered app gets an Asana project with sections and custom fields.
+
+### Sections (updated 2026-03-20, PR #179)
 
 | Section | Key | Purpose |
 |---------|-----|---------|
-| Backlog | `backlog` | Triaged items, not yet picked up |
-| Up Next | `up_next` | Auto-fixable items (high confidence) routed here |
+| New | `new` | Incoming feedback, not yet picked up |
+| Deferred | `deferred` | Seen but deprioritized |
 | In Progress | `in_progress` | Being worked on |
-| Deferred | `deferred` | Deprioritized |
 | Completed | `completed` | Done |
 
-Auto-triage routing logic:
-- `auto_fixable && confidence >= 0.7 && project.auto_agent_enabled` → **Up Next**
-- Everything else → **Backlog**
+All new feedback routes to **New**. Legacy projects with `backlog` key still work (fallback).
+
+### Custom fields (PR #179)
+
+| Field | Asana Type | Values |
+|-------|-----------|--------|
+| Type | Single-select | bug, feature_request, ux_issue, performance, question, other |
+| Severity | Single-select | critical, high, medium, low |
+| Effort | Single-select | trivial, small, medium, large |
+| Submitted by | Text | Initials (e.g. "TCP") |
+| Submitted | Date | Feedback submission date |
+
+Custom fields are created automatically during project registration and stored in `projects.asana_custom_fields` as a GID mapping. Existing projects get custom fields backfilled on re-registration.
 
 ---
 
@@ -250,7 +273,8 @@ Auto-triage routing logic:
 | created_at | timestamptz | now() | |
 | github_repo | text | — | e.g. `Dana-Innovations/sales-reports` |
 | asana_project_id | text | — | GID of Asana project |
-| asana_section_mapping | jsonb | — | `{ "backlog": "gid", "up_next": "gid", ... }` |
+| asana_section_mapping | jsonb | — | `{ "new": "gid", "deferred": "gid", ... }` |
+| asana_custom_fields | jsonb | — | Field GIDs + enum option GIDs for Asana custom fields |
 | auto_agent_enabled | boolean | false | Route easy bugs for AI auto-fix |
 | current_version | text | — | semver |
 | beta_required | boolean | false | |
