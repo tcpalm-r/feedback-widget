@@ -37,6 +37,7 @@ export function useFeedbackSubmission({
   const [isInitialsValidationError, setIsInitialsValidationError] = useState(false);
   const [isTypeValidationError, setIsTypeValidationError] = useState(false);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isSubmittingRef = useRef(false);
 
   // Load cached initials on mount
   useEffect(() => {
@@ -108,6 +109,9 @@ export function useFeedbackSubmission({
       e.preventDefault();
     }
 
+    // Prevent double-submit
+    if (isSubmittingRef.current) return;
+
     // Validate all required fields - just show red on empty fields
     const typeEmpty = feedbackType === '';
     const initialsEmpty = !feedbackInitials.trim();
@@ -122,6 +126,7 @@ export function useFeedbackSubmission({
       return;
     }
 
+    isSubmittingRef.current = true;
     setSubmissionState('loading');
     setErrorMessage('');
     setIsNetworkError(false);
@@ -177,6 +182,8 @@ export function useFeedbackSubmission({
       },
       effectiveApiBaseUrl
     );
+
+    isSubmittingRef.current = false;
 
     if (result.success) {
       setSubmissionState('success');
