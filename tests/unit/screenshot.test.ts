@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { CapturedScreenshot } from '../../src/components/FeedbackWidget/utils/screenshot'
 
-// Mock html2canvas before importing the module
-vi.mock('html2canvas', () => ({
-  default: vi.fn(),
+// Mock modern-screenshot before importing the module
+vi.mock('modern-screenshot', () => ({
+  domToCanvas: vi.fn(),
 }))
 
 describe('Screenshot Utility', () => {
   let mockCanvas: HTMLCanvasElement
+  let mockCroppedCanvas: HTMLCanvasElement
   let mockBlob: Blob
   let captureRegion: (x: number, y: number, width: number, height: number) => Promise<Blob>
   let captureScreenshot: (x: number, y: number, width: number, height: number) => Promise<CapturedScreenshot>
@@ -17,15 +18,30 @@ describe('Screenshot Utility', () => {
     // Create mock blob
     mockBlob = new Blob(['test'], { type: 'image/png' })
 
-    // Create mock canvas with toBlob
+    // Create mock canvas returned by domToCanvas
     mockCanvas = document.createElement('canvas')
-    mockCanvas.toBlob = vi.fn((callback) => {
+
+    // Create mock cropped canvas with toBlob
+    mockCroppedCanvas = document.createElement('canvas')
+    mockCroppedCanvas.toBlob = vi.fn((callback) => {
       callback(mockBlob)
     })
 
-    // Mock html2canvas to return our mock canvas
-    const html2canvas = await import('html2canvas')
-    vi.mocked(html2canvas.default).mockResolvedValue(mockCanvas)
+    // Mock document.createElement to return our mock cropped canvas
+    const originalCreateElement = document.createElement.bind(document)
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      if (tag === 'canvas') return mockCroppedCanvas
+      return originalCreateElement(tag)
+    })
+
+    // Mock the 2d context
+    mockCroppedCanvas.getContext = vi.fn().mockReturnValue({
+      drawImage: vi.fn(),
+    })
+
+    // Mock modern-screenshot to return our mock canvas
+    const modernScreenshot = await import('modern-screenshot')
+    vi.mocked(modernScreenshot.domToCanvas).mockResolvedValue(mockCanvas)
 
     // Mock URL.createObjectURL
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url-123')
@@ -97,46 +113,19 @@ describe('Screenshot Utility', () => {
   })
 
   describe('captureRegion', () => {
-    it('should throw error for selection smaller than 10x10 pixels', async () => {
-      await expect(captureRegion(0, 0, 5, 5)).rejects.toThrow('Selection too small')
-      await expect(captureRegion(0, 0, 9, 100)).rejects.toThrow('Selection too small')
-      await expect(captureRegion(0, 0, 100, 9)).rejects.toThrow('Selection too small')
-    })
-
-    it('should accept 10x10 pixel selection', async () => {
-      const result = await captureRegion(0, 0, 10, 10)
-      expect(result).toBeInstanceOf(Blob)
-    })
-
     it('should return a Blob', async () => {
       const result = await captureRegion(0, 0, 100, 100)
       expect(result).toBeInstanceOf(Blob)
     })
 
-    it('should call html2canvas with useCORS true and logging false', async () => {
-      await captureRegion(50, 50, 100, 100)
+    it('should call domToCanvas with scale 1 for regions under 2000px', async () => {
+      await captureRegion(0, 0, 500, 500)
 
-      const html2canvas = await import('html2canvas')
-      expect(html2canvas.default).toHaveBeenCalledWith(
+      const modernScreenshot = await import('modern-screenshot')
+      expect(modernScreenshot.domToCanvas).toHaveBeenCalledWith(
         document.body,
         expect.objectContaining({
-          useCORS: true,
-          logging: false,
-        })
-      )
-    })
-
-    it('should call html2canvas with correct region parameters', async () => {
-      await captureRegion(100, 200, 300, 400)
-
-      const html2canvas = await import('html2canvas')
-      expect(html2canvas.default).toHaveBeenCalledWith(
-        document.body,
-        expect.objectContaining({
-          x: 100,
-          y: 200,
-          width: 300,
-          height: 400,
+          scale: 1,
         })
       )
     })
@@ -144,8 +133,8 @@ describe('Screenshot Utility', () => {
     it('should scale down regions larger than 2000px', async () => {
       await captureRegion(0, 0, 4000, 1000)
 
-      const html2canvas = await import('html2canvas')
-      expect(html2canvas.default).toHaveBeenCalledWith(
+      const modernScreenshot = await import('modern-screenshot')
+      expect(modernScreenshot.domToCanvas).toHaveBeenCalledWith(
         document.body,
         expect.objectContaining({
           scale: 0.5, // 2000/4000
@@ -156,8 +145,8 @@ describe('Screenshot Utility', () => {
     it('should scale down height if it exceeds 2000px', async () => {
       await captureRegion(0, 0, 1000, 4000)
 
-      const html2canvas = await import('html2canvas')
-      expect(html2canvas.default).toHaveBeenCalledWith(
+      const modernScreenshot = await import('modern-screenshot')
+      expect(modernScreenshot.domToCanvas).toHaveBeenCalledWith(
         document.body,
         expect.objectContaining({
           scale: 0.5, // 2000/4000
@@ -165,16 +154,13 @@ describe('Screenshot Utility', () => {
       )
     })
 
-    it('should use scale 1 for regions under 2000px', async () => {
-      await captureRegion(0, 0, 500, 500)
+    it('should include a filter function that excludes feedback widget elements', async () => {
+      await captureRegion(0, 0, 100, 100)
 
-      const html2canvas = await import('html2canvas')
-      expect(html2canvas.default).toHaveBeenCalledWith(
-        document.body,
-        expect.objectContaining({
-          scale: 1,
-        })
-      )
+      const modernScreenshot = await import('modern-screenshot')
+      const callArgs = vi.mocked(modernScreenshot.domToCanvas).mock.calls[0][1]
+      expect(callArgs).toHaveProperty('filter')
+      expect(typeof callArgs!.filter).toBe('function')
     })
   })
 

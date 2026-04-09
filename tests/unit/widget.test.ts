@@ -51,6 +51,10 @@ beforeEach(() => {
   Object.defineProperty(global, 'document', {
     value: {
       cookie: '',
+      documentElement: {
+        clientWidth: 1024,
+        clientHeight: 768,
+      },
     },
     writable: true,
   })

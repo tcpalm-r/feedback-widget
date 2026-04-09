@@ -135,14 +135,14 @@ export function getFeedbackFormHTML(
         ` : ''}
 
         <div class="feedback-form-field feedback-form-row">
-          <select id="feedback-type" name="type" class="feedback-select ${isTypeValidationError ? 'error' : ''}" ${isDisabled ? 'disabled' : ''}>
+          <select id="feedback-type" name="type" class="feedback-select${isTypeValidationError ? ' error' : ''}" ${isDisabled ? 'disabled' : ''}>
             ${typeOptions}
           </select>
           <input
             type="text"
             id="feedback-initials"
             name="initials"
-            class="feedback-initials ${isInitialsValidationError ? 'error' : ''}"
+            class="feedback-initials${isInitialsValidationError ? ' error' : ''}"
             placeholder="Initials"
             maxlength="4"
             value="${escapeHtml(initials)}"
@@ -154,7 +154,7 @@ export function getFeedbackFormHTML(
           <textarea
             id="feedback-message"
             name="message"
-            class="feedback-textarea ${isValidationError ? 'error' : ''}"
+            class="feedback-textarea${isValidationError ? ' error' : ''}"
             placeholder="Description..."
             rows="1"
             ${isDisabled ? 'disabled' : ''}
