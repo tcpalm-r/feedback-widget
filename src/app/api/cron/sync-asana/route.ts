@@ -210,10 +210,52 @@ export async function GET(request: Request) {
     }
   }
 
+  // --- SYNC 3: Retry pending_triage items that never got triaged/Asana tasks ---
+  // These are items inserted via the direct-Supabase fallback (Cortex was down)
+  // or batch-inserted from meeting notes bypassing Cortex entirely.
+
+  const CORTEX_API_URL = process.env.CORTEX_API_URL || "";
+  let retriedCount = 0;
+  let retryFailedCount = 0;
+
+  if (CORTEX_API_URL) {
+    const { data: pendingItems } = await supabase
+      .from("feedback")
+      .select("id, app_id")
+      .eq("status", "pending_triage")
+      .is("asana_task_gid", null)
+      .order("created_at", { ascending: true })
+      .limit(20); // Cap per cron run to avoid timeouts
+
+    if (pendingItems && pendingItems.length > 0) {
+      for (const item of pendingItems) {
+        try {
+          const res = await fetch(
+            `${CORTEX_API_URL}/api/v1/feedback/${item.id}/retry`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+          if (res.ok) {
+            retriedCount++;
+          } else {
+            retryFailedCount++;
+          }
+        } catch {
+          // Cortex still down — items stay pending, will retry next cron run
+          retryFailedCount++;
+        }
+      }
+    }
+  }
+
   return NextResponse.json({
     resolved: resolvedCount,
     unresolved: unresolvedCount,
     checked: (unresolvedItems?.length || 0) + (resolvedItems?.length || 0),
     screenshots_attached: screenshotsAttached,
+    retried: retriedCount,
+    retry_failed: retryFailedCount,
   });
 }

@@ -152,12 +152,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true }, { headers: corsHeaders });
     }
 
-    // Fallback: direct Supabase insert (no triage, but feedback is saved)
+    // Fallback: direct Supabase insert (no triage, but feedback is saved).
+    // The cron sync job will retry triage via Cortex on the next run.
     if (CORTEX_API_URL) {
       console.warn(`[FeedbackWidget] Cortex unavailable, falling back to direct insert for app_id="${appId}"`);
     }
 
-    const { error } = await supabase.from('feedback').insert([feedbackRecord]);
+    const { error } = await supabase.from('feedback').insert([{
+      ...feedbackRecord,
+      status: 'pending_triage',
+    }]);
 
     if (error) {
       console.error('[FeedbackWidget] Supabase insert error:', error);
