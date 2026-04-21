@@ -106,9 +106,18 @@ export async function GET(request: Request) {
             const newState = sectionGidToState.get(sectionGid);
             if (!newState) continue;
 
-            // Only update if status or resolved actually changed
-            if (item.status !== newState.status || item.resolved !== newState.resolved) {
-              updates.push({ id: item.id, ...newState });
+            // Race guard: never regress resolved=true back to false based on an
+            // Asana section reading. The resolved flag is authoritative on the
+            // DB side (webhook + dashboard own that transition). Asana-side
+            // drags to an unresolved section WILL still update status so the
+            // Kanban reflects current workflow, but resolved stays true until
+            // explicitly reset via the dashboard or SQL.
+            const preserveResolved = item.resolved === true && newState.resolved === false;
+            const nextStatus = newState.status;
+            const nextResolved = preserveResolved ? true : newState.resolved;
+
+            if (item.status !== nextStatus || item.resolved !== nextResolved) {
+              updates.push({ id: item.id, status: nextStatus, resolved: nextResolved });
             }
             break; // Use the first matched section
           }
