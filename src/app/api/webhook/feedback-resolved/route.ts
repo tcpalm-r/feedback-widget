@@ -38,13 +38,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ skipped: true, reason: "no section mapping" });
   }
 
-  // Determine target section based on resolved state
+  // Determine target section based on resolved state.
+  // resolved=true → Testing (awaits manual QA). Once QA passes, a human drags
+  // the task to Completed in Asana, which the cron syncs back to the DB.
+  // Falls back to Completed if no Testing section is mapped for this project.
   let targetGid: string | undefined;
   let movedTo: string;
 
   if (record.resolved === true) {
-    targetGid = sectionMapping.completed;
-    movedTo = "completed";
+    targetGid = sectionMapping.testing || sectionMapping.completed;
+    movedTo = sectionMapping.testing ? "testing" : "completed";
   } else {
     // Unresolve — move back to "new" section (fallback: "bug")
     targetGid = sectionMapping.new || sectionMapping.bug || sectionMapping.backlog;
