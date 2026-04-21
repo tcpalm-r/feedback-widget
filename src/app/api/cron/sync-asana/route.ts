@@ -236,21 +236,36 @@ export async function GET(request: Request) {
   }
 
   const movedToTesting: string[] = [];
+  const sync4Debug: { resolvedCount: number; testingAppIds: string[]; skippedNoTestingGid: number; skippedAlreadyTerminal: number; failedAsanaFetch: number; failedMove: number } = {
+    resolvedCount: 0,
+    testingAppIds: [...testingSectionByAppId.keys()],
+    skippedNoTestingGid: 0,
+    skippedAlreadyTerminal: 0,
+    failedAsanaFetch: 0,
+    failedMove: 0,
+  };
 
   const resolvedItems = (linkedItems || []).filter((item) => item.resolved);
+  sync4Debug.resolvedCount = resolvedItems.length;
   for (let i = 0; i < resolvedItems.length; i += batchSize) {
     const batch = resolvedItems.slice(i, i + batchSize);
     await Promise.allSettled(
       batch.map(async (item) => {
         const testingGid = testingSectionByAppId.get(item.app_id);
-        if (!testingGid) return;
+        if (!testingGid) {
+          sync4Debug.skippedNoTestingGid++;
+          return;
+        }
 
         try {
           const res = await fetch(
             `https://app.asana.com/api/1.0/tasks/${item.asana_task_gid}?opt_fields=memberships.section.gid`,
             { headers: { Authorization: `Bearer ${asanaPat}` } }
           );
-          if (!res.ok) return;
+          if (!res.ok) {
+            sync4Debug.failedAsanaFetch++;
+            return;
+          }
           const json = await res.json();
           const memberships = json?.data?.memberships || [];
 
@@ -262,6 +277,7 @@ export async function GET(request: Request) {
 
           const currentSectionGid = memberships[0]?.section?.gid;
           if (currentSectionGid === testingGid || currentSectionGid === completedGid) {
+            sync4Debug.skippedAlreadyTerminal++;
             return; // already in a resolved section, nothing to do
           }
 
@@ -278,9 +294,11 @@ export async function GET(request: Request) {
           );
           if (moveRes.ok) {
             movedToTesting.push(item.id);
+          } else {
+            sync4Debug.failedMove++;
           }
         } catch {
-          // Skip failed moves — will retry next cron run
+          sync4Debug.failedMove++;
         }
       })
     );
@@ -293,5 +311,6 @@ export async function GET(request: Request) {
     retried: retriedCount,
     retry_failed: retryFailedCount,
     moved_to_testing: movedToTesting.length,
+    sync4_debug: sync4Debug,
   });
 }
