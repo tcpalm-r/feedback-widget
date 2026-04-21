@@ -13,7 +13,12 @@ const asanaPat = process.env.ASANA_PAT!;
  * Up Next        → up_next  (hidden from /triagefb)
  * In Progress    → in_progress
  * Deferred       → deferred
- * Completed      → resolved + resolved=true
+ * Testing        → resolved + resolved=true (awaiting manual verification)
+ * Completed      → resolved + resolved=true (verified)
+ *
+ * Testing and Completed share the same DB state; Testing is the interstitial
+ * landing slot after we ship a fix. SYNC 4 moves DB-marked resolved items
+ * into the Testing section automatically.
  */
 const SECTION_STATUS_MAP: Record<string, { status: string; resolved: boolean }> = {
   backlog:     { status: "triaged",     resolved: false },
@@ -21,6 +26,7 @@ const SECTION_STATUS_MAP: Record<string, { status: string; resolved: boolean }> 
   up_next:     { status: "up_next",     resolved: false },
   in_progress: { status: "in_progress", resolved: false },
   deferred:    { status: "deferred",    resolved: false },
+  testing:     { status: "resolved",    resolved: true  },
   completed:   { status: "resolved",    resolved: true  },
 };
 
@@ -215,11 +221,77 @@ export async function GET(request: Request) {
     }
   }
 
+  // --- SYNC 4: Reverse — DB resolved=true → Asana Testing section ---
+  // When an item is marked resolved in the DB (e.g. from the dashboard or
+  // programmatically after shipping a fix), move its Asana task into the
+  // project's Testing section so QA can pick it up. Skip items already in
+  // Testing or Completed — those are already in a valid terminal state.
+
+  const testingSectionByAppId = new Map<string, string>();
+  for (const project of projects || []) {
+    const mapping = (project.asana_section_mapping as Record<string, string>) || {};
+    if (mapping.testing) {
+      testingSectionByAppId.set(project.app_id, mapping.testing);
+    }
+  }
+
+  const movedToTesting: string[] = [];
+
+  const resolvedItems = (linkedItems || []).filter((item) => item.resolved);
+  for (let i = 0; i < resolvedItems.length; i += batchSize) {
+    const batch = resolvedItems.slice(i, i + batchSize);
+    await Promise.allSettled(
+      batch.map(async (item) => {
+        const testingGid = testingSectionByAppId.get(item.app_id);
+        if (!testingGid) return;
+
+        try {
+          const res = await fetch(
+            `https://app.asana.com/api/1.0/tasks/${item.asana_task_gid}?opt_fields=memberships.section.gid`,
+            { headers: { Authorization: `Bearer ${asanaPat}` } }
+          );
+          if (!res.ok) return;
+          const json = await res.json();
+          const memberships = json?.data?.memberships || [];
+
+          const projectMapping =
+            (projects?.find((p) => p.app_id === item.app_id)?.asana_section_mapping as
+              | Record<string, string>
+              | undefined) || {};
+          const completedGid = projectMapping.completed;
+
+          const currentSectionGid = memberships[0]?.section?.gid;
+          if (currentSectionGid === testingGid || currentSectionGid === completedGid) {
+            return; // already in a resolved section, nothing to do
+          }
+
+          const moveRes = await fetch(
+            `https://app.asana.com/api/1.0/sections/${testingGid}/addTask`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${asanaPat}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ data: { task: item.asana_task_gid } }),
+            }
+          );
+          if (moveRes.ok) {
+            movedToTesting.push(item.id);
+          }
+        } catch {
+          // Skip failed moves — will retry next cron run
+        }
+      })
+    );
+  }
+
   return NextResponse.json({
     checked: linkedItems?.length || 0,
     status_updated: updates.length,
     screenshots_attached: screenshotsAttached,
     retried: retriedCount,
     retry_failed: retryFailedCount,
+    moved_to_testing: movedToTesting.length,
   });
 }
