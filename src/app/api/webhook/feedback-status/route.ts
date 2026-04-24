@@ -14,9 +14,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const record = body.record as { id?: string; app_id?: string; asana_task_gid?: string | null; status?: string } | undefined;
-  const oldRecord = body.old_record as { status?: string } | undefined;
+  let body: { record?: unknown; old_record?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const record = (body.record as { id?: string; app_id?: string; asana_task_gid?: string | null; status?: string } | undefined);
+  const oldRecord = (body.old_record as { status?: string } | undefined);
 
   if (!record?.asana_task_gid) {
     return NextResponse.json({ skipped: "no asana_task_gid" });
@@ -28,10 +33,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ skipped: "unknown status", status: record.status });
   }
 
+  if (!record.app_id) {
+    return NextResponse.json({ skipped: "no app_id" });
+  }
+
   const supabase = createClient(supabaseUrl, supabaseKey);
   const { data: project } = await supabase
     .from("projects")
-    .select("asana_project_id, asana_section_mapping")
+    .select("asana_project_id")
     .eq("app_id", record.app_id)
     .single();
 
@@ -53,6 +62,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ skipped: "target section missing from Asana", status: record.status });
   }
 
+  // Asana's sections/addTask is idempotent: moving a task already in the target
+  // section is a no-op returning 200. Safe against pg_net retry double-fires.
   const moveRes = await fetch(
     `https://app.asana.com/api/1.0/sections/${targetGid}/addTask`,
     {
