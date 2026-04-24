@@ -31,7 +31,12 @@ export async function POST(request: Request) {
     if (parent?.resource_type !== "task" || !parent?.gid) continue;
     const sub = resource.resource_subtype;
     if (sub === "section_changed") taskGidsForSectionChange.add(parent.gid as string);
-    else if (sub === "custom_field_changed") taskGidsForCustomFieldChange.add(parent.gid as string);
+    // Asana fires typed subtypes like enum_custom_field_changed, text_custom_field_changed,
+    // number_custom_field_changed, date_custom_field_changed. Match them all — the handler
+    // below doesn't care which type changed; it re-reads the task's full custom_fields.
+    else if (typeof sub === "string" && sub.endsWith("_custom_field_changed")) {
+      taskGidsForCustomFieldChange.add(parent.gid as string);
+    }
   }
 
   const allTaskGids = new Set<string>([...taskGidsForSectionChange, ...taskGidsForCustomFieldChange]);
