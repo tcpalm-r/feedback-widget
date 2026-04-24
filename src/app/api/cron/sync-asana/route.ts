@@ -1,240 +1,157 @@
+// src/app/api/cron/sync-asana/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { buildSectionMap, gidToStatus, statusToGid, SectionMap } from "@/lib/asana-sections";
+import { isFeedbackStatus, FeedbackStatus } from "@/lib/feedback-status";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const asanaPat = process.env.ASANA_PAT!;
 
-/**
- * Maps Asana section keys (from projects.asana_section_mapping) to the
- * feedback status and resolved flag in Supabase.
- *
- * Backlog / New  → triaged  (shows in /triagefb)
- * Up Next        → up_next  (hidden from /triagefb)
- * In Progress    → in_progress
- * Deferred       → deferred
- * Testing        → resolved + resolved=true (awaiting manual verification)
- * Completed      → resolved + resolved=true (verified)
- *
- * Testing and Completed share the same DB state; Testing is the interstitial
- * landing slot after we ship a fix. SYNC 4 moves DB-marked resolved items
- * into the Testing section automatically.
- */
-const SECTION_STATUS_MAP: Record<string, { status: string; resolved: boolean }> = {
-  backlog:     { status: "triaged",     resolved: false },
-  new:         { status: "triaged",     resolved: false },
-  up_next:     { status: "up_next",     resolved: false },
-  in_progress: { status: "in_progress", resolved: false },
-  deferred:    { status: "deferred",    resolved: false },
-  testing:     { status: "resolved",    resolved: true  },
-  completed:   { status: "resolved",    resolved: true  },
-};
-
-interface ScreenshotElement {
-  url: string;
-  storagePath?: string;
-  region?: { x: number; y: number; width: number; height: number };
-  sizeBytes?: number;
-}
+interface ScreenshotElement { url?: string; }
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
+  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // --- SYNC 1: Bidirectional section-based status sync ---
-  // For every feedback item with an Asana task, check which section the task
-  // is in and update status + resolved to match.
-
-  const { data: linkedItems, error: fetchError } = await supabase
+  // ----- Load every feedback row that has an Asana task -----
+  const { data: linkedItems = [] } = await supabase
     .from("feedback")
-    .select("id, app_id, asana_task_gid, status, resolved")
+    .select("id, app_id, asana_task_gid, status, elements, metadata")
     .not("asana_task_gid", "is", null);
 
-  if (fetchError) {
-    return NextResponse.json(
-      { error: "Failed to fetch feedback", details: fetchError.message },
-      { status: 500 }
-    );
+  // ----- Load project → Asana project GID map, then fetch sections per project -----
+  const appIds = [...new Set((linkedItems ?? []).map((i) => i.app_id))];
+  const { data: projects = [] } = await supabase
+    .from("projects").select("app_id, asana_project_id").in("app_id", appIds);
+  const projectIdByApp = new Map<string, string>();
+  for (const p of projects ?? []) {
+    if (p.asana_project_id) projectIdByApp.set(p.app_id, p.asana_project_id as string);
   }
+  const mapByProject = new Map<string, SectionMap>();
+  await Promise.allSettled(
+    [...new Set(projectIdByApp.values())].map(async (pid) => {
+      const res = await fetch(
+        `https://app.asana.com/api/1.0/projects/${pid}/sections?opt_fields=name`,
+        { headers: { Authorization: `Bearer ${asanaPat}` } },
+      );
+      if (!res.ok) return;
+      const json = await res.json();
+      mapByProject.set(pid, buildSectionMap(json.data ?? []));
+    }),
+  );
 
-  // Build a lookup: section GID → { status, resolved } for all relevant projects
-  const appIds = [...new Set((linkedItems || []).map((item) => item.app_id))];
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("app_id, asana_section_mapping")
-    .in("app_id", appIds);
-
-  const sectionGidToState = new Map<string, { status: string; resolved: boolean }>();
-  for (const project of projects || []) {
-    const mapping = project.asana_section_mapping as Record<string, string>;
-    if (!mapping) continue;
-    for (const [key, gid] of Object.entries(mapping)) {
-      const state = SECTION_STATUS_MAP[key];
-      if (state) {
-        sectionGidToState.set(gid, state);
-      }
-    }
-  }
-
-  // Check each item's Asana task section and compute updates
-  const updates: { id: string; status: string; resolved: boolean }[] = [];
+  // ----- PASS 1: reconcile DB status against Asana section (drift catcher) -----
+  let statusReconciled = 0;
+  let orphaned = 0;
   const batchSize = 25;
+  for (let i = 0; i < (linkedItems ?? []).length; i += batchSize) {
+    const batch = (linkedItems ?? []).slice(i, i + batchSize);
+    await Promise.allSettled(batch.map(async (item) => {
+      const pid = projectIdByApp.get(item.app_id);
+      const map = pid ? mapByProject.get(pid) : undefined;
+      if (!map) return;
 
-  for (let i = 0; i < (linkedItems || []).length; i += batchSize) {
-    const batch = (linkedItems || []).slice(i, i + batchSize);
-    await Promise.allSettled(
-      batch.map(async (item) => {
-        try {
-          const res = await fetch(
-            `https://app.asana.com/api/1.0/tasks/${item.asana_task_gid}?opt_fields=memberships.section.gid`,
-            { headers: { Authorization: `Bearer ${asanaPat}` } }
-          );
-          if (!res.ok) return;
-          const json = await res.json();
-          const memberships = json?.data?.memberships || [];
+      const res = await fetch(
+        `https://app.asana.com/api/1.0/tasks/${item.asana_task_gid}?opt_fields=memberships.section.gid`,
+        { headers: { Authorization: `Bearer ${asanaPat}` } },
+      );
+      if (res.status === 404) {
+        // Asana task was deleted → reset so Cortex retry recreates it.
+        await supabase.from("feedback")
+          .update({ asana_task_gid: null, status: "new" }).eq("id", item.id);
+        orphaned++;
+        return;
+      }
+      if (!res.ok) return;
+      const json = await res.json();
+      const sectionGid = (json?.data?.memberships?.[0]?.section?.gid) as string | undefined;
+      if (!sectionGid) return;
+      const asanaStatus = gidToStatus(map, sectionGid);
+      if (!asanaStatus) return;
 
-          for (const m of memberships) {
-            const sectionGid = m?.section?.gid;
-            if (!sectionGid) continue;
-            const newState = sectionGidToState.get(sectionGid);
-            if (!newState) continue;
+      // If DB and Asana disagree, the *source of truth* is whichever moved more
+      // recently. We can't tell from cron alone, so prefer DB — only correct when
+      // the DB status has no matching Asana section (e.g. status points at an
+      // unmapped section and task is actually in a real column). Otherwise, if
+      // DB disagrees with Asana, push DB → Asana to honour the resolved guard.
+      if (asanaStatus === item.status) return;
 
-            // Race guard: never regress resolved=true back to false based on an
-            // Asana section reading. The resolved flag is authoritative on the
-            // DB side (webhook + dashboard own that transition). Asana-side
-            // drags to an unresolved section WILL still update status so the
-            // Kanban reflects current workflow, but resolved stays true until
-            // explicitly reset via the dashboard or SQL.
-            const preserveResolved = item.resolved === true && newState.resolved === false;
-            const nextStatus = newState.status;
-            const nextResolved = preserveResolved ? true : newState.resolved;
-
-            if (item.status !== nextStatus || item.resolved !== nextResolved) {
-              updates.push({ id: item.id, status: nextStatus, resolved: nextResolved });
-            }
-            break; // Use the first matched section
-          }
-        } catch {
-          // Skip failed lookups — will retry next cron run
-        }
-      })
-    );
+      const dbGid = statusToGid(map, item.status as FeedbackStatus);
+      if (dbGid) {
+        // DB has a valid target section; move Asana to match.
+        await fetch(`https://app.asana.com/api/1.0/sections/${dbGid}/addTask`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${asanaPat}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ data: { task: item.asana_task_gid } }),
+        });
+        statusReconciled++;
+      } else if (isFeedbackStatus(asanaStatus)) {
+        // DB status is invalid or unmapped; trust Asana.
+        await supabase.from("feedback").update({ status: asanaStatus }).eq("id", item.id);
+        statusReconciled++;
+      }
+    }));
   }
 
-  // Apply updates grouped by target state to minimize DB calls
-  const updatesByState = new Map<string, string[]>();
-  for (const u of updates) {
-    const key = `${u.status}|${u.resolved}`;
-    if (!updatesByState.has(key)) updatesByState.set(key, []);
-    updatesByState.get(key)!.push(u.id);
-  }
-
-  for (const [key, ids] of updatesByState) {
-    const [status, resolvedStr] = key.split("|");
-    const resolved = resolvedStr === "true";
-    await supabase
-      .from("feedback")
-      .update({ status, resolved })
-      .in("id", ids);
-  }
-
-  // --- SYNC 2: Attach screenshots to Asana tasks ---
-
-  const { data: screenshotItems } = await supabase
-    .from("feedback")
-    .select("id, asana_task_gid, elements, metadata")
-    .not("asana_task_gid", "is", null)
-    .not("elements", "is", null);
-
+  // ----- PASS 2: attach screenshots to Asana tasks (idempotent via metadata flag) -----
+  const { data: screenshotItems = [] } = await supabase
+    .from("feedback").select("id, asana_task_gid, elements, metadata")
+    .not("asana_task_gid", "is", null).not("elements", "is", null);
   let screenshotsAttached = 0;
-
-  if (screenshotItems) {
-    for (const item of screenshotItems) {
-      const meta = (item.metadata as Record<string, unknown>) || {};
-      if (meta._screenshots_attached) continue;
-
-      const elements = item.elements as ScreenshotElement[];
-      if (!Array.isArray(elements) || elements.length === 0) continue;
-
-      let attached = false;
-      for (const element of elements) {
-        if (!element.url) continue;
-
-        const commentRes = await fetch(
-          `https://app.asana.com/api/1.0/tasks/${item.asana_task_gid}/stories`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${asanaPat}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              data: { text: `Screenshot: ${element.url}` },
-            }),
-          }
-        );
-        if (commentRes.ok) attached = true;
-      }
-
-      if (attached) {
-        await supabase
-          .from("feedback")
-          .update({ metadata: { ...meta, _screenshots_attached: true } })
-          .eq("id", item.id);
-        screenshotsAttached++;
-      }
+  for (const item of (screenshotItems ?? [])) {
+    const meta = (item.metadata as Record<string, unknown>) || {};
+    if (meta._screenshots_attached) continue;
+    const elements = item.elements as ScreenshotElement[];
+    if (!Array.isArray(elements) || elements.length === 0) continue;
+    let any = false;
+    for (const el of elements) {
+      if (!el?.url) continue;
+      const r = await fetch(
+        `https://app.asana.com/api/1.0/tasks/${item.asana_task_gid}/stories`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${asanaPat}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ data: { text: `Screenshot: ${el.url}` } }),
+        },
+      );
+      if (r.ok) any = true;
+    }
+    if (any) {
+      await supabase.from("feedback")
+        .update({ metadata: { ...meta, _screenshots_attached: true } }).eq("id", item.id);
+      screenshotsAttached++;
     }
   }
 
-  // --- SYNC 3: Retry pending_triage items that never got triaged/Asana tasks ---
-
+  // ----- PASS 3: retry Cortex for rows with status='new' and no Asana task -----
   const CORTEX_API_URL = process.env.CORTEX_API_URL || "";
-  let retriedCount = 0;
-  let retryFailedCount = 0;
-
+  let retried = 0;
+  let retryFailed = 0;
   if (CORTEX_API_URL) {
-    const { data: pendingItems } = await supabase
-      .from("feedback")
-      .select("id, app_id")
-      .eq("status", "pending_triage")
-      .is("asana_task_gid", null)
-      .order("created_at", { ascending: true })
-      .limit(20);
-
-    if (pendingItems && pendingItems.length > 0) {
-      for (const item of pendingItems) {
-        try {
-          const res = await fetch(
-            `${CORTEX_API_URL}/api/v1/feedback/${item.id}/retry`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-            }
-          );
-          if (res.ok) {
-            retriedCount++;
-          } else {
-            retryFailedCount++;
-          }
-        } catch {
-          retryFailedCount++;
-        }
-      }
+    const { data: pending = [] } = await supabase
+      .from("feedback").select("id, app_id").eq("status", "new").is("asana_task_gid", null)
+      .order("created_at", { ascending: true }).limit(20);
+    for (const item of (pending ?? [])) {
+      try {
+        const r = await fetch(`${CORTEX_API_URL}/api/v1/feedback/${item.id}/retry`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+        });
+        if (r.ok) retried++;
+        else retryFailed++;
+      } catch { retryFailed++; }
     }
   }
 
   return NextResponse.json({
-    checked: linkedItems?.length || 0,
-    status_updated: updates.length,
+    checked: (linkedItems ?? []).length,
+    status_reconciled: statusReconciled,
+    orphaned,
     screenshots_attached: screenshotsAttached,
-    retried: retriedCount,
-    retry_failed: retryFailedCount,
+    retried,
+    retry_failed: retryFailed,
   });
 }
