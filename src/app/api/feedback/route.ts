@@ -160,7 +160,7 @@ export async function POST(request: Request) {
 
     const { error } = await supabase.from('feedback').insert([{
       ...feedbackRecord,
-      status: 'pending_triage',
+      status: 'new',
     }]);
 
     if (error) {
