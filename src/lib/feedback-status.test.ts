@@ -14,9 +14,14 @@ describe("feedback-status", () => {
     ]);
   });
 
-  it("validates a known status", () => {
+  it("validates a known status and rejects non-strings or unknown strings", () => {
     expect(isFeedbackStatus("bug")).toBe(true);
     expect(isFeedbackStatus("triaged")).toBe(false);
+    expect(isFeedbackStatus("")).toBe(false);
+    expect(isFeedbackStatus(null)).toBe(false);
+    expect(isFeedbackStatus(undefined)).toBe(false);
+    expect(isFeedbackStatus(42)).toBe(false);
+    expect(isFeedbackStatus({})).toBe(false);
   });
 
   it("converts Asana section names to status keys (case- and space-insensitive)", () => {
@@ -26,9 +31,14 @@ describe("feedback-status", () => {
     expect(sectionNameToStatus("Unknown Column")).toBeUndefined();
   });
 
-  it("converts status keys back to canonical section names", () => {
-    expect(statusToSectionName("on_hold")).toBe("On Hold");
+  it("converts every status key back to its canonical section name", () => {
     expect(statusToSectionName("new")).toBe("New");
+    expect(statusToSectionName("feature")).toBe("Feature");
+    expect(statusToSectionName("bug")).toBe("Bug");
+    expect(statusToSectionName("development")).toBe("Development");
+    expect(statusToSectionName("testing")).toBe("Testing");
+    expect(statusToSectionName("on_hold")).toBe("On Hold");
+    expect(statusToSectionName("completed")).toBe("Completed");
   });
 
   it("treats testing and completed as resolved states", () => {

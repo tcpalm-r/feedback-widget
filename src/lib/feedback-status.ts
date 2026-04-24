@@ -1,3 +1,4 @@
+/** Canonical feedback status enum — one key per Template A Asana section. Imported by webhooks, cron, API, and dashboard. */
 export const FEEDBACK_STATUSES = [
   "new",
   "feature",
@@ -10,6 +11,8 @@ export const FEEDBACK_STATUSES = [
 
 export type FeedbackStatus = (typeof FEEDBACK_STATUSES)[number];
 
+const STATUS_SET: ReadonlySet<string> = new Set(FEEDBACK_STATUSES);
+
 const SECTION_NAME_BY_STATUS: Record<FeedbackStatus, string> = {
   new: "New",
   feature: "Feature",
@@ -20,12 +23,15 @@ const SECTION_NAME_BY_STATUS: Record<FeedbackStatus, string> = {
   completed: "Completed",
 };
 
-const STATUS_BY_SECTION_KEY: Record<string, FeedbackStatus> = Object.fromEntries(
-  FEEDBACK_STATUSES.map((s) => [SECTION_NAME_BY_STATUS[s].toLowerCase(), s]),
-) as Record<string, FeedbackStatus>;
+const STATUS_BY_SECTION_KEY: Record<string, FeedbackStatus> = FEEDBACK_STATUSES.reduce<
+  Record<string, FeedbackStatus>
+>((acc, s) => {
+  acc[SECTION_NAME_BY_STATUS[s].toLowerCase()] = s;
+  return acc;
+}, {});
 
 export function isFeedbackStatus(v: unknown): v is FeedbackStatus {
-  return typeof v === "string" && (FEEDBACK_STATUSES as readonly string[]).includes(v);
+  return typeof v === "string" && STATUS_SET.has(v);
 }
 
 export function sectionNameToStatus(name: string): FeedbackStatus | undefined {
