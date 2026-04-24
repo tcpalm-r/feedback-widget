@@ -1,133 +1,95 @@
+// src/app/api/webhook/asana/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { buildSectionMap, gidToStatus } from "@/lib/asana-sections";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const asanaPat = process.env.ASANA_PAT!;
 
-const RESOLVED_SECTION_KEYS = ["testing", "completed"];
-
-/**
- * Asana webhook endpoint.
- *
- * Handles two things:
- * 1. Handshake — Asana sends X-Hook-Secret, we echo it back
- * 2. Events — section_changed stories trigger resolve/unresolve sync
- */
 export async function POST(request: Request) {
   // --- Handshake: Asana sends X-Hook-Secret on initial registration ---
   const hookSecret = request.headers.get("x-hook-secret");
   if (hookSecret) {
-    return new NextResponse(null, {
-      status: 200,
-      headers: { "X-Hook-Secret": hookSecret },
-    });
+    return new NextResponse(null, { status: 200, headers: { "X-Hook-Secret": hookSecret } });
   }
 
-  // --- Event processing ---
   let body: { events?: Array<Record<string, unknown>> };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
   const events = body.events || [];
+  if (events.length === 0) return NextResponse.json({ ok: true });
 
-  // Heartbeat — empty events array
-  if (events.length === 0) {
-    return NextResponse.json({ ok: true });
-  }
-
-  // Collect task GIDs from section_changed events
+  // Collect task GIDs from section_changed events.
   const taskGids = new Set<string>();
   for (const event of events) {
     const resource = event.resource as Record<string, unknown> | undefined;
     const parent = event.parent as Record<string, unknown> | undefined;
-
-    if (
-      resource?.resource_type === "story" &&
-      resource?.resource_subtype === "section_changed" &&
-      parent?.resource_type === "task" &&
-      parent?.gid
-    ) {
+    if (resource?.resource_type === "story"
+      && resource?.resource_subtype === "section_changed"
+      && parent?.resource_type === "task"
+      && parent?.gid) {
       taskGids.add(parent.gid as string);
     }
   }
-
-  if (taskGids.size === 0) {
-    return NextResponse.json({ ok: true, processed: 0 });
-  }
+  if (taskGids.size === 0) return NextResponse.json({ ok: true, processed: 0 });
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-
-  // Look up feedback entries for these task GIDs
   const { data: feedbackItems } = await supabase
     .from("feedback")
-    .select("id, app_id, asana_task_gid, resolved")
+    .select("id, app_id, asana_task_gid, status")
     .in("asana_task_gid", Array.from(taskGids));
 
-  if (!feedbackItems || feedbackItems.length === 0) {
-    return NextResponse.json({ ok: true, processed: 0, reason: "no matching feedback" });
-  }
+  if (!feedbackItems?.length) return NextResponse.json({ ok: true, processed: 0, reason: "no matching feedback" });
 
-  // Get section mappings for relevant projects
   const appIds = [...new Set(feedbackItems.map((f) => f.app_id))];
   const { data: projects } = await supabase
-    .from("projects")
-    .select("app_id, asana_section_mapping")
-    .in("app_id", appIds);
+    .from("projects").select("app_id, asana_project_id").in("app_id", appIds);
 
-  const resolvedSections = new Set<string>();
-  for (const project of projects || []) {
-    const mapping = project.asana_section_mapping as Record<string, string>;
-    if (!mapping) continue;
-    for (const [key, gid] of Object.entries(mapping)) {
-      if (RESOLVED_SECTION_KEYS.includes(key)) {
-        resolvedSections.add(gid);
-      }
-    }
+  const projectIdByApp = new Map<string, string>();
+  for (const p of projects ?? []) {
+    if (p.asana_project_id) projectIdByApp.set(p.app_id, p.asana_project_id as string);
   }
 
-  // Check each task's current section and sync
-  let resolvedCount = 0;
-  let unresolvedCount = 0;
-
+  // Fetch sections per project once.
+  const mapByProject = new Map<string, Awaited<ReturnType<typeof buildSectionMap>> | undefined>();
   await Promise.allSettled(
-    feedbackItems.map(async (item) => {
+    [...new Set(projectIdByApp.values())].map(async (pid) => {
       const res = await fetch(
-        `https://app.asana.com/api/1.0/tasks/${item.asana_task_gid}?opt_fields=memberships.section.gid`,
-        { headers: { Authorization: `Bearer ${asanaPat}` } }
+        `https://app.asana.com/api/1.0/projects/${pid}/sections?opt_fields=name`,
+        { headers: { Authorization: `Bearer ${asanaPat}` } },
       );
       if (!res.ok) return;
-
       const json = await res.json();
-      const memberships = json?.data?.memberships || [];
-      const inResolvedSection = memberships.some(
-        (m: { section?: { gid?: string } }) =>
-          resolvedSections.has(m?.section?.gid || "")
-      );
-
-      if (inResolvedSection && !item.resolved) {
-        await supabase
-          .from("feedback")
-          .update({ resolved: true, status: "resolved" })
-          .eq("id", item.id);
-        resolvedCount++;
-      } else if (!inResolvedSection && item.resolved) {
-        await supabase
-          .from("feedback")
-          .update({ resolved: false, status: "triaged" })
-          .eq("id", item.id);
-        unresolvedCount++;
-      }
-    })
+      mapByProject.set(pid, buildSectionMap(json.data ?? []));
+    }),
   );
 
-  return NextResponse.json({
-    ok: true,
-    processed: taskGids.size,
-    resolved: resolvedCount,
-    unresolved: unresolvedCount,
-  });
+  let updated = 0;
+  await Promise.allSettled(
+    feedbackItems.map(async (item) => {
+      const pid = projectIdByApp.get(item.app_id);
+      const map = pid ? mapByProject.get(pid) : undefined;
+      if (!map) return;
+
+      const res = await fetch(
+        `https://app.asana.com/api/1.0/tasks/${item.asana_task_gid}?opt_fields=memberships.section.gid`,
+        { headers: { Authorization: `Bearer ${asanaPat}` } },
+      );
+      if (!res.ok) return;
+      const json = await res.json();
+      const memberships = (json?.data?.memberships ?? []) as Array<{ section?: { gid?: string } }>;
+      const sectionGid = memberships[0]?.section?.gid;
+      if (!sectionGid) return;
+
+      const newStatus = gidToStatus(map, sectionGid);
+      if (!newStatus) return;
+      if (newStatus === item.status) return;
+
+      await supabase.from("feedback").update({ status: newStatus }).eq("id", item.id);
+      updated++;
+    }),
+  );
+
+  return NextResponse.json({ ok: true, processed: taskGids.size, updated });
 }
