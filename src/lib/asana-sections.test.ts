@@ -39,4 +39,15 @@ describe("asana-sections", () => {
     const map = buildSectionMap(SECTIONS);
     expect(gidToStatus(map, "300")).toBe("bug");
   });
+
+  it("when two sections share a name, the last one wins in byStatus", () => {
+    const withDup = [
+      ...SECTIONS,
+      { gid: "999", name: "Bug" }, // duplicate of gid 300
+    ];
+    const map = buildSectionMap(withDup);
+    expect(map.byStatus.get("bug")).toBe("999");          // last entry wins
+    expect(map.byGid.get("300")).toBe("bug");             // first gid still maps
+    expect(map.byGid.get("999")).toBe("bug");             // second gid also maps
+  });
 });
