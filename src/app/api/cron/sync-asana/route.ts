@@ -60,9 +60,13 @@ export async function GET(request: Request) {
         { headers: { Authorization: `Bearer ${asanaPat}` } },
       );
       if (res.status === 404) {
-        // Asana task was deleted → reset so Cortex retry recreates it.
-        await supabase.from("feedback")
-          .update({ asana_task_gid: null, status: "new" }).eq("id", item.id);
+        // Asana task was deleted → move the feedback row to feedback_archive
+        // (preserves content for accidental-deletion recovery) and remove it
+        // from feedback so it stops appearing in dashboards / triagefb.
+        await supabase.rpc("archive_feedback", {
+          feedback_id: item.id,
+          reason: "asana_task_deleted",
+        });
         orphaned++;
         return;
       }
