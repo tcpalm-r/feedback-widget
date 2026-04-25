@@ -24,9 +24,22 @@ export async function POST(request: Request) {
   // Collect task GIDs from each event type.
   const taskGidsForSectionChange = new Set<string>();
   const taskGidsForCustomFieldChange = new Set<string>();
+  const taskGidsForDeletion = new Set<string>();
   for (const event of events) {
     const resource = event.resource as Record<string, unknown> | undefined;
     const parent = event.parent as Record<string, unknown> | undefined;
+
+    // Task delete event fires directly on the task resource (no story).
+    if (
+      resource?.resource_type === "task" &&
+      event.action === "deleted" &&
+      typeof resource.gid === "string"
+    ) {
+      taskGidsForDeletion.add(resource.gid);
+      continue;
+    }
+
+    // Section / custom-field changes fire as story events with the task as parent.
     if (resource?.resource_type !== "story") continue;
     if (parent?.resource_type !== "task" || !parent?.gid) continue;
     const sub = resource.resource_subtype;
@@ -39,7 +52,11 @@ export async function POST(request: Request) {
     }
   }
 
-  const allTaskGids = new Set<string>([...taskGidsForSectionChange, ...taskGidsForCustomFieldChange]);
+  const allTaskGids = new Set<string>([
+    ...taskGidsForSectionChange,
+    ...taskGidsForCustomFieldChange,
+    ...taskGidsForDeletion,
+  ]);
   if (allTaskGids.size === 0) return NextResponse.json({ ok: true, processed: 0 });
 
   const supabase = createClient(supabaseUrl, supabaseKey);
@@ -138,10 +155,25 @@ export async function POST(request: Request) {
       }),
   );
 
+  // --- PASS C: task.deleted → archive feedback row ---
+  let archived = 0;
+  await Promise.allSettled(
+    feedbackItems
+      .filter((item) => taskGidsForDeletion.has(item.asana_task_gid as string))
+      .map(async (item) => {
+        const { error } = await supabase.rpc("archive_feedback", {
+          feedback_id: item.id,
+          reason: "asana_task_deleted",
+        });
+        if (!error) archived++;
+      }),
+  );
+
   return NextResponse.json({
     ok: true,
     processed: allTaskGids.size,
     status_updated: statusUpdated,
     custom_field_updated: customFieldUpdated,
+    archived,
   });
 }
