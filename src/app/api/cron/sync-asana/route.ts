@@ -8,8 +8,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const asanaPat = process.env.ASANA_PAT!;
 
-interface ScreenshotElement { url?: string; }
-
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -20,7 +18,7 @@ export async function GET(request: Request) {
   // ----- Load every feedback row that has an Asana task -----
   const { data: linkedItems = [] } = await supabase
     .from("feedback")
-    .select("id, app_id, asana_task_gid, status, elements, metadata")
+    .select("id, app_id, asana_task_gid, status")
     .not("asana_task_gid", "is", null);
 
   // ----- Load project → Asana project GID map, then fetch sections per project -----
@@ -101,37 +99,7 @@ export async function GET(request: Request) {
     }));
   }
 
-  // ----- PASS 2: attach screenshots to Asana tasks (idempotent via metadata flag) -----
-  const { data: screenshotItems = [] } = await supabase
-    .from("feedback").select("id, asana_task_gid, elements, metadata")
-    .not("asana_task_gid", "is", null).not("elements", "is", null);
-  let screenshotsAttached = 0;
-  for (const item of (screenshotItems ?? [])) {
-    const meta = (item.metadata as Record<string, unknown>) || {};
-    if (meta._screenshots_attached) continue;
-    const elements = item.elements as ScreenshotElement[];
-    if (!Array.isArray(elements) || elements.length === 0) continue;
-    let any = false;
-    for (const el of elements) {
-      if (!el?.url) continue;
-      const r = await fetch(
-        `https://app.asana.com/api/1.0/tasks/${item.asana_task_gid}/stories`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${asanaPat}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ data: { text: `Screenshot: ${el.url}` } }),
-        },
-      );
-      if (r.ok) any = true;
-    }
-    if (any) {
-      await supabase.from("feedback")
-        .update({ metadata: { ...meta, _screenshots_attached: true } }).eq("id", item.id);
-      screenshotsAttached++;
-    }
-  }
-
-  // ----- PASS 3: retry Cortex for rows with status='new' and no Asana task -----
+  // ----- PASS 2: retry Cortex for rows with status='new' and no Asana task -----
   const CORTEX_API_URL = process.env.CORTEX_API_URL || "";
   let retried = 0;
   let retryFailed = 0;
@@ -154,7 +122,6 @@ export async function GET(request: Request) {
     checked: (linkedItems ?? []).length,
     status_reconciled: statusReconciled,
     orphaned,
-    screenshots_attached: screenshotsAttached,
     retried,
     retry_failed: retryFailed,
   });
