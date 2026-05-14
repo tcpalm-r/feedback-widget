@@ -21,6 +21,7 @@ export interface FeedbackWidgetProps {
   appId?: string;
   jwtConfig?: JwtConfig;
   apiBaseUrl?: string;
+  collectEmail?: boolean;
 }
 
 function useIsClient() {
@@ -31,12 +32,13 @@ FeedbackWidget.init = function init(config: FeedbackWidgetConfig): void {
   initConfig(config);
 };
 
-export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: FeedbackWidgetProps = {}) {
+export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl, collectEmail }: FeedbackWidgetProps = {}) {
   const globalConfig = getConfig();
   const effectiveAppId = appId ?? globalConfig?.appId ?? 'default';
   const effectivePosition = position ?? globalConfig?.position ?? 'top-right';
   const effectiveJwtConfig = jwtConfig ?? globalConfig?.jwtConfig;
   const effectiveApiBaseUrl = apiBaseUrl ?? globalConfig?.apiBaseUrl;
+  const effectiveCollectEmail = collectEmail ?? globalConfig?.collectEmail ?? false;
 
   const hostRef = useRef<HTMLDivElement>(null);
   const shadowRootRef = useRef<ShadowRoot | null>(null);
@@ -83,7 +85,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
   } = useFeedbackSubmission({
     effectiveAppId, effectiveApiBaseUrl, effectiveJwtConfig, capturedScreenshots, setCapturedScreenshots,
     setDrawnRectangles: setDrawnRectangles as React.Dispatch<React.SetStateAction<DrawnRectangle[]>>,
-    setIsScreenshotListExpanded, setIsExpanded,
+    setIsScreenshotListExpanded, setIsExpanded, collectEmail: effectiveCollectEmail,
   });
 
   useEffect(() => {
@@ -124,7 +126,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
     }
     const hasRectanglesToDisplay = drawnRectangles.length > 0;
     const selectionModeOverlay = isSelectionMode ? getSelectionModeOverlayHTML(capturedScreenshots.length, selectionWarning) : (hasRectanglesToDisplay ? getDisplayCanvasHTML() : '');
-    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError && !isInitialsValidationError && !isTypeValidationError, isValidationError, feedbackInitials, isInitialsValidationError, isTypeValidationError);
+    const formContent = getFeedbackFormHTML(feedbackType, feedbackMessage, submissionState, errorMessage, isNetworkError, capturedScreenshots, isScreenshotListExpanded, !isValidationError && !isInitialsValidationError && !isTypeValidationError, isValidationError, feedbackInitials, isInitialsValidationError, isTypeValidationError, effectiveCollectEmail);
 
     let morphContainer = morphContainerRef.current;
     if (morphContainer && shadowRoot.contains(morphContainer)) {
@@ -138,7 +140,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
         // Updating innerHTML during collapse transition causes SVG repaint issues
         if (isExpanded) {
           const existingTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
-          const existingInitials = formLayer.querySelector('#feedback-initials') as HTMLInputElement | null;
+          const existingInitials = (formLayer.querySelector('#feedback-identifier') || formLayer.querySelector('#feedback-initials')) as HTMLInputElement | null;
           const textareaHadFocus = shadowRoot.activeElement === existingTextarea;
           const initialsHadFocus = shadowRoot.activeElement === existingInitials;
           const selectionStart = existingTextarea?.selectionStart;
@@ -156,7 +158,7 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl }: Feedb
               newTextarea.setSelectionRange(newTextarea.selectionStart, newTextarea.selectionStart);
             }
           } else if (initialsHadFocus) {
-            const newInitials = formLayer.querySelector('#feedback-initials') as HTMLInputElement | null;
+            const newInitials = (formLayer.querySelector('#feedback-identifier') || formLayer.querySelector('#feedback-initials')) as HTMLInputElement | null;
             if (newInitials) {
               newInitials.focus();
               if (initialsSelectionStart !== undefined && initialsSelectionEnd !== undefined) {

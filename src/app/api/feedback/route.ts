@@ -68,6 +68,7 @@ export async function POST(request: Request) {
     type?: string;
     message?: string;
     initials?: string;
+    email?: string;
     elements?: unknown[];
     metadata?: Record<string, unknown>;
   };
@@ -85,6 +86,7 @@ export async function POST(request: Request) {
   const message = typeof payload.message === 'string' ? payload.message.trim() : '';
   const type = typeof payload.type === 'string' ? payload.type : 'bug';
   const initials = typeof payload.initials === 'string' ? payload.initials.trim().slice(0, MAX_INITIALS_LENGTH) : null;
+  const email = typeof payload.email === 'string' ? payload.email.trim().slice(0, 254) : null;
   const metadata =
     payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {};
 
@@ -115,6 +117,7 @@ export async function POST(request: Request) {
     type,
     message,
     initials: initials || null,
+    email: email || null,
     elements: payload.elements ?? null,
     metadata: {
       ...metadata,

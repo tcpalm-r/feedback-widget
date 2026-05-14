@@ -17,6 +17,8 @@ export interface FeedbackWidgetConfig {
   env?: WidgetEnv;
   // Optional: Base URL for the hosted API (defaults to widget host)
   apiBaseUrl?: string;
+  // Optional: Whether to collect user email in the feedback form (default: false)
+  collectEmail?: boolean;
 }
 
 // Internal state
@@ -108,6 +110,7 @@ export function initConfig(config: FeedbackWidgetConfig): void {
     jwtConfig: config.jwtConfig,
     env: config.env,
     apiBaseUrl: config.apiBaseUrl,
+    collectEmail: config.collectEmail ?? false,
   };
 
   isInitialized = true;

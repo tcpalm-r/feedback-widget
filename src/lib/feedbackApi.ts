@@ -10,6 +10,7 @@ export interface FeedbackSubmission {
   type: string;
   message: string;
   initials?: string;
+  email?: string;
   elements?: unknown[];
   metadata: FeedbackMetadata;
 }

@@ -8,6 +8,7 @@ interface UseFeedbackSubmissionProps {
   effectiveAppId: string;
   effectiveApiBaseUrl?: string;
   effectiveJwtConfig?: JwtConfig;
+  collectEmail?: boolean;
   capturedScreenshots: CapturedScreenshot[];
   setCapturedScreenshots: React.Dispatch<React.SetStateAction<CapturedScreenshot[]>>;
   setDrawnRectangles: React.Dispatch<React.SetStateAction<{ id: string; x: number; y: number; width: number; height: number; number: number }[]>>;
@@ -19,13 +20,14 @@ export function useFeedbackSubmission({
   effectiveAppId,
   effectiveApiBaseUrl,
   effectiveJwtConfig,
+  collectEmail,
   capturedScreenshots,
   setCapturedScreenshots,
   setDrawnRectangles,
   setIsScreenshotListExpanded,
   setIsExpanded,
 }: UseFeedbackSubmissionProps) {
-  const INITIALS_STORAGE_KEY = 'feedback-widget-initials';
+  const IDENTIFIER_STORAGE_KEY = collectEmail ? 'feedback-widget-email' : 'feedback-widget-initials';
 
   const [feedbackType, setFeedbackTypeRaw] = useState<FeedbackType>('');
   const [feedbackMessage, setFeedbackMessageRaw] = useState('');
@@ -42,7 +44,7 @@ export function useFeedbackSubmission({
   // Load cached initials on mount
   useEffect(() => {
     try {
-      const cached = localStorage.getItem(INITIALS_STORAGE_KEY);
+      const cached = localStorage.getItem(IDENTIFIER_STORAGE_KEY);
       if (cached) {
         setFeedbackInitials(cached);
       }
@@ -126,6 +128,12 @@ export function useFeedbackSubmission({
       return;
     }
 
+    if (collectEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(feedbackInitials.trim())) {
+      setIsInitialsValidationError(true);
+      setSubmissionState('idle');
+      return;
+    }
+
     isSubmittingRef.current = true;
     setSubmissionState('loading');
     setErrorMessage('');
@@ -176,7 +184,7 @@ export function useFeedbackSubmission({
         app_id: effectiveAppId,
         type: feedbackType,
         message: feedbackMessage.trim(),
-        initials: feedbackInitials.trim() || undefined,
+        ...(collectEmail ? { email: feedbackInitials.trim() || undefined } : { initials: feedbackInitials.trim() || undefined }),
         elements: uploadedScreenshots.length > 0 ? uploadedScreenshots : undefined,
         metadata,
       },
@@ -190,7 +198,7 @@ export function useFeedbackSubmission({
       // Cache initials for future submissions
       if (feedbackInitials.trim()) {
         try {
-          localStorage.setItem(INITIALS_STORAGE_KEY, feedbackInitials.trim());
+          localStorage.setItem(IDENTIFIER_STORAGE_KEY, feedbackInitials.trim());
         } catch {
           // localStorage not available
         }

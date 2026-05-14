@@ -91,12 +91,14 @@ function parseConfigFromScript(script: HTMLScriptElement | null): FeedbackWidget
   const position = parsePosition(script.dataset.position);
   const env = getEnvFromScript(script);
   const apiBaseUrl = getApiBaseUrlFromScript(script);
+  const collectEmail = 'collectEmail' in script.dataset;
 
   return {
     appId,
     position,
     env,
     apiBaseUrl,
+    collectEmail,
   };
 }
 

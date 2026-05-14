@@ -31,7 +31,7 @@ export function setupFormEventListeners(
   const form = shadowRoot.querySelector('.feedback-form-body');
   const typeSelect = shadowRoot.querySelector('#feedback-type') as HTMLSelectElement;
   const messageTextarea = shadowRoot.querySelector('#feedback-message') as HTMLTextAreaElement;
-  const initialsInput = shadowRoot.querySelector('#feedback-initials') as HTMLInputElement;
+  const identifierInput = shadowRoot.querySelector('#feedback-identifier') as HTMLInputElement || shadowRoot.querySelector('#feedback-initials') as HTMLInputElement;
   const retryButton = shadowRoot.querySelector('.feedback-retry-button');
   const selectOnScreenButton = shadowRoot.querySelector('.feedback-select-button');
   const screenshotMenu = shadowRoot.querySelector('.feedback-screenshot-menu');
@@ -50,9 +50,9 @@ export function setupFormEventListeners(
     messageTextarea.addEventListener('keyup', (e) => e.stopPropagation());
     messageTextarea.addEventListener('keypress', (e) => e.stopPropagation());
   }
-  if (initialsInput) {
-    initialsInput.addEventListener('input', (e) => setFeedbackInitials((e.target as HTMLInputElement).value));
-    initialsInput.addEventListener('keydown', (e) => e.stopPropagation());
+  if (identifierInput) {
+    identifierInput.addEventListener('input', (e) => setFeedbackInitials((e.target as HTMLInputElement).value));
+    identifierInput.addEventListener('keydown', (e) => e.stopPropagation());
   }
   if (retryButton) retryButton.addEventListener('click', handleRetry);
 

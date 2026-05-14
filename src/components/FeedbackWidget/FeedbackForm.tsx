@@ -75,7 +75,8 @@ export function getFeedbackFormHTML(
   isValidationError: boolean = false,
   initials: string = '',
   isInitialsValidationError: boolean = false,
-  isTypeValidationError: boolean = false
+  isTypeValidationError: boolean = false,
+  collectEmail: boolean = false
 ): string {
   const typeOptions = `<option value="" disabled ${selectedType === '' ? 'selected' : ''}>Select type...</option>` +
     feedbackTypeOptions
@@ -138,7 +139,15 @@ export function getFeedbackFormHTML(
           <select id="feedback-type" name="type" class="feedback-select${isTypeValidationError ? ' error' : ''}" ${isDisabled ? 'disabled' : ''}>
             ${typeOptions}
           </select>
-          <input
+          ${collectEmail ? `<input
+            type="email"
+            id="feedback-identifier"
+            name="email"
+            class="feedback-email${isInitialsValidationError ? ' error' : ''}"
+            placeholder="Email"
+            value="${escapeHtml(initials)}"
+            ${isDisabled ? 'disabled' : ''}
+          />` : `<input
             type="text"
             id="feedback-initials"
             name="initials"
@@ -147,7 +156,7 @@ export function getFeedbackFormHTML(
             maxlength="4"
             value="${escapeHtml(initials)}"
             ${isDisabled ? 'disabled' : ''}
-          />
+          />`}
         </div>
 
         <div class="feedback-form-field">

@@ -334,6 +334,53 @@ export const getWidgetStyles = (): string => `
     box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
   }
 
+  .feedback-email {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid ${colors.lightGray};
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: ${typography.weightRegular};
+    color: ${colors.textDark};
+    background-color: ${colors.background};
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .feedback-email::placeholder {
+    color: ${colors.gray400};
+  }
+
+  .feedback-email:hover {
+    border-color: ${colors.gray400};
+  }
+
+  .feedback-email:focus {
+    outline: none;
+    border-color: ${colors.blue};
+    box-shadow: 0 0 0 3px rgba(0, 163, 225, 0.15);
+  }
+
+  .feedback-email:disabled {
+    background-color: ${colors.gray50};
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .feedback-email.error {
+    border-color: #dc2626;
+    background-color: #fef2f2;
+  }
+
+  .feedback-email.error::placeholder {
+    color: #dc2626;
+  }
+
+  .feedback-email.error:focus {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  }
+
   .feedback-label {
     font-size: 12px;
     font-weight: ${typography.weightMedium};
