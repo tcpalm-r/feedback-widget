@@ -143,28 +143,21 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl, collect
           const existingInitials = (formLayer.querySelector('#feedback-identifier') || formLayer.querySelector('#feedback-initials')) as HTMLInputElement | null;
           const textareaHadFocus = shadowRoot.activeElement === existingTextarea;
           const initialsHadFocus = shadowRoot.activeElement === existingInitials;
-          const selectionStart = existingTextarea?.selectionStart;
-          const selectionEnd = existingTextarea?.selectionEnd;
-          const scrollTop = existingTextarea?.scrollTop;
-          const initialsSelectionStart = existingInitials?.selectionStart;
-          const initialsSelectionEnd = existingInitials?.selectionEnd;
-          formLayer.innerHTML = formContent;
-          if (textareaHadFocus) {
-            const newTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
-            if (newTextarea) {
-              newTextarea.focus();
-              if (selectionStart !== undefined && selectionEnd !== undefined) newTextarea.setSelectionRange(selectionStart, selectionEnd);
-              if (scrollTop !== undefined) newTextarea.scrollTop = scrollTop;
-              newTextarea.setSelectionRange(newTextarea.selectionStart, newTextarea.selectionStart);
-            }
-          } else if (initialsHadFocus) {
-            const newInitials = (formLayer.querySelector('#feedback-identifier') || formLayer.querySelector('#feedback-initials')) as HTMLInputElement | null;
-            if (newInitials) {
-              newInitials.focus();
-              if (initialsSelectionStart !== undefined && initialsSelectionEnd !== undefined) {
-                requestAnimationFrame(() => {
-                  newInitials.setSelectionRange(initialsSelectionStart, initialsSelectionEnd);
-                });
+
+          if (initialsHadFocus && existingInitials) {
+            existingInitials.value = feedbackInitials;
+          } else {
+            const selectionStart = existingTextarea?.selectionStart;
+            const selectionEnd = existingTextarea?.selectionEnd;
+            const scrollTop = existingTextarea?.scrollTop;
+            formLayer.innerHTML = formContent;
+            if (textareaHadFocus) {
+              const newTextarea = formLayer.querySelector('#feedback-message') as HTMLTextAreaElement | null;
+              if (newTextarea) {
+                newTextarea.focus();
+                if (selectionStart !== undefined && selectionEnd !== undefined) newTextarea.setSelectionRange(selectionStart, selectionEnd);
+                if (scrollTop !== undefined) newTextarea.scrollTop = scrollTop;
+                newTextarea.setSelectionRange(newTextarea.selectionStart, newTextarea.selectionStart);
               }
             }
           }
