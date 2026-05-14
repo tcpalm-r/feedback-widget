@@ -140,9 +140,9 @@ export function getFeedbackFormHTML(
             ${typeOptions}
           </select>
           ${collectEmail ? `<input
-            type="email"
+            type="text"
             id="feedback-identifier"
-            name="email"
+            name="fbident"
             class="feedback-email${isInitialsValidationError ? ' error' : ''}"
             placeholder="Email"
             autocomplete="off"
