@@ -145,6 +145,7 @@ export function getFeedbackFormHTML(
             name="email"
             class="feedback-email${isInitialsValidationError ? ' error' : ''}"
             placeholder="Email"
+            autocomplete="off"
             value="${escapeHtml(initials)}"
             ${isDisabled ? 'disabled' : ''}
           />` : `<input
