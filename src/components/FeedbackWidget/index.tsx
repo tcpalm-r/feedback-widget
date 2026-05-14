@@ -162,7 +162,9 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl, collect
             if (newInitials) {
               newInitials.focus();
               if (initialsSelectionStart !== undefined && initialsSelectionEnd !== undefined) {
-                newInitials.setSelectionRange(initialsSelectionStart, initialsSelectionEnd);
+                requestAnimationFrame(() => {
+                  newInitials.setSelectionRange(initialsSelectionStart, initialsSelectionEnd);
+                });
               }
             }
           }
