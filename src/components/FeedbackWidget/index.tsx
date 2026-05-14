@@ -145,7 +145,10 @@ export function FeedbackWidget({ position, appId, jwtConfig, apiBaseUrl, collect
           const initialsHadFocus = shadowRoot.activeElement === existingInitials;
 
           if (initialsHadFocus && existingInitials) {
+            const pos = existingInitials.selectionStart;
             existingInitials.value = feedbackInitials;
+            existingInitials.selectionStart = pos;
+            existingInitials.selectionEnd = pos;
           } else {
             const selectionStart = existingTextarea?.selectionStart;
             const selectionEnd = existingTextarea?.selectionEnd;
