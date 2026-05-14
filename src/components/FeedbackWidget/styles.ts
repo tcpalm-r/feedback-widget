@@ -335,7 +335,7 @@ export const getWidgetStyles = (): string => `
   }
 
   .feedback-email {
-    flex: 1;
+    flex: 1.5;
     min-width: 0;
     padding: 10px 12px;
     border: 1px solid ${colors.lightGray};
